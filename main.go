@@ -69,6 +69,12 @@ func RunBuild(options BuildOptions) error {
 		}
 	}
 
+	cmd := []string{"latexmk", "-pdf", "-silent", "-auxdir=/mnt/aux", "-outdir=/mnt/out"};
+
+	if options.Document != "" {
+		cmd = append(cmd, options.Document)
+	}
+
 	resp, err := cli.ContainerCreate(
 		ctx,
 		&container.Config{
@@ -106,8 +112,6 @@ func RunBuild(options BuildOptions) error {
 	if err != nil {
 		return fmt.Errorf("RunBuild ContainerLogs: %w", err)
 	}
-
-	log.Println("container logs")
 
 	if _, err := stdcopy.StdCopy(os.Stdout, os.Stderr, out); err != nil {
 		return fmt.Errorf("RunBuild ContainerLogs StdCopy: %w", err)
