@@ -138,7 +138,7 @@ func main() {
 		panic(err)
 	}
 	log.Println(cwd)
-	if err := RunBuild(BuildOptions{ TexDir: cwd, OutDir: "/tmp/latex", Context: ctx }); err != nil {
+	if err := RunBuild(BuildOptions{ TexDir: cwd, OutDir: cwd, Context: ctx }); err != nil {
 		panic(err)
 	}
 }
