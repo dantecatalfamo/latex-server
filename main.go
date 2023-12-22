@@ -27,10 +27,10 @@ const TexLiveContainer = "texlive/texlive:latest"
 
 func RunBuild(options BuildOptions) error {
 	if options.TexDir == "" {
-		return errors.New("TexDir empty")
+		return errors.New("BuildOptions.TexDir empty")
 	}
 	if options.OutDir == "" {
-		return errors.New("OutDir empty")
+		return errors.New("BuildOptions.OutDir empty")
 	}
 
 	ctx := options.Context
