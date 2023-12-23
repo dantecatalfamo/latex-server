@@ -7,6 +7,10 @@ import (
 	"time"
 )
 
+type Config struct {
+	ProjectDir string
+}
+
 func main() {
 	log.Println("Pulling image")
 	ctx := context.Background()
