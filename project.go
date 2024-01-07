@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+// We should be using a database like SQLite3 for this at some point,
+// but for now we're just playing around
 type ProjectInfo struct {
 	Name string         `json:"name"`
 	Owner string        `json:"owner"`
@@ -66,7 +68,7 @@ func NewProject(config Config, owner string) (string, error) {
 		id = fmt.Sprintf("%x", randBytes)
 
 		fullPath := filepath.Join(config.ProjectDir, id)
-		if _, err := os.Stat(fullPath); !os.IsNotExist(err) {
+		if _, err := os.Stat(fullPath); err == nil {
 			// Somehow random id already exists
 			tries++
 			if tries > 16 {
@@ -103,14 +105,15 @@ func NewProject(config Config, owner string) (string, error) {
 }
 
 type FileInfo struct {
-	Path string
-	Sha512Hash string
-	Size uint64
+	Path string        `json:"path"`
+	Size uint64        `json:"size"`
+	Sha512Hash string  `json:"sha512hash"`
 }
 
 func ListProjectFiles(config Config, project string, subdir string) ([]FileInfo, error) {
 	projectPath := filepath.Join(config.ProjectDir, project)
 	filesPath := filepath.Join(projectPath, subdir)
+	cachePath := filepath.Join(projectPath, fmt.Sprintf("%scahce.json", subdir))
 
 	if _, err := os.Stat(projectPath); os.IsNotExist(err) {
 		return nil, errors.New("Project doesn't exist")
@@ -120,6 +123,20 @@ func ListProjectFiles(config Config, project string, subdir string) ([]FileInfo,
 	}
 
 	var fileInfo []FileInfo
+
+	// If cache exists, use it. It should be deleted if anything has changed
+	if _, err := os.Stat(cachePath); err == nil {
+		cacheFile, err := os.Open(cachePath)
+		if err != nil {
+			return nil, fmt.Errorf("ListProjectFiles opening cache: %w", err)
+		}
+		err = json.NewDecoder(cacheFile).Decode(&fileInfo)
+		if err != nil {
+			return nil, fmt.Errorf("ListProjectFiles reading cache: %w", err)
+		}
+
+		return fileInfo, nil
+	}
 
 	filepath.Walk(filesPath, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
@@ -136,6 +153,14 @@ func ListProjectFiles(config Config, project string, subdir string) ([]FileInfo,
 
 		return nil
 	})
+
+	cacheFile, err := os.Create(cachePath)
+	if err != nil {
+		return nil, fmt.Errorf("ListProjectFiles creating cache: %w", err)
+	}
+	if err := json.NewEncoder(cacheFile).Encode(fileInfo); err != nil {
+		return nil, fmt.Errorf("ListProjectFiles: encoding cache %w", err)
+	}
 
 	return fileInfo, nil
 }

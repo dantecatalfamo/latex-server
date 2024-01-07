@@ -80,7 +80,7 @@ func RunBuild(ctx context.Context, options BuildOptions) (string, error) {
 
 	sharedDir := path.Join(options.TexDir, "shared")
 
-	if _, err := os.Stat(sharedDir); !os.IsNotExist(err) {
+	if _, err := os.Stat(sharedDir); err == nil {
 		return "", errors.New("TeXDir/shared already exists")
 	}
 
