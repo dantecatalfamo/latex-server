@@ -22,6 +22,7 @@ type ProjectInfo struct {
 	LastBuild time.Time `json:"lastBuild"`
 }
 
+// ReadProjectInfo reads the ProjectInfo of a project.
 func ReadProjectInfo(config Config, projectId string) (ProjectInfo, error) {
 	infoPath := filepath.Join(config.ProjectDir, projectId, "info.json")
 	infoFile, err := os.Open(infoPath)
@@ -38,6 +39,7 @@ func ReadProjectInfo(config Config, projectId string) (ProjectInfo, error) {
 	return info, nil
 }
 
+// WriteProjectInfo writes ProjectInfo for a project.
 func WriteProjectInfo(config Config, projectId string, projectInfo ProjectInfo) error {
 	infoPath := filepath.Join(config.ProjectDir, projectId, "info.json")
 	infoFile, err := os.Create(infoPath)
@@ -55,6 +57,8 @@ func WriteProjectInfo(config Config, projectId string, projectInfo ProjectInfo) 
 	return nil
 }
 
+// NewProject creates a new project and gives it a random ID belonging
+// to owner. It returns the ID.
 func NewProject(config Config, owner string) (string, error) {
 	tries := 0
 	var id string
@@ -110,6 +114,13 @@ type FileInfo struct {
 	Sha512Hash string  `json:"sha512hash"`
 }
 
+// ListProjectFiles returns a list of files in the subdir of a project
+// directory.
+//
+// It will cache the list after creating it because hashing an unknown
+// and potentially large number of files can be expensive. It will
+// read from that cahe if it exists. The subdir cache should be
+// deleted by any function that modifies the files it contains.
 func ListProjectFiles(config Config, project string, subdir string) ([]FileInfo, error) {
 	projectPath := filepath.Join(config.ProjectDir, project)
 	filesPath := filepath.Join(projectPath, subdir)

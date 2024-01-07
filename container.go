@@ -67,7 +67,8 @@ func PullImage(ctx context.Context) error {
 // It usese the files and directories specified in `options' on the
 // host system as the source and destination for its job.
 // It requires that options.WorkDir and options.TexDir are specified,
-// otherwise it will return an error.
+// otherwise it will return an error. It also requires that there is
+// no directory "shared" in the project source root
 //
 // It returns the output of latexmk, or an error if the build fails.
 func RunBuild(ctx context.Context, options BuildOptions) (string, error) {
@@ -224,7 +225,7 @@ func RunBuild(ctx context.Context, options BuildOptions) (string, error) {
 	return outBuffer.String(), nil
 }
 
-func IsDirEmpty(name string) (bool, error) {
+func isDirEmpty(name string) (bool, error) {
 	f, err := os.Open(name)
 	if err != nil {
 		return false, err
