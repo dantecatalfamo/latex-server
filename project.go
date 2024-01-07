@@ -182,6 +182,8 @@ func ListProjectFiles(config Config, projectId string, subdir string) ([]FileInf
 	return fileInfo, nil
 }
 
+// ClearProjectDir empties a project's subdirectory. This would
+// usually be something like src, aux, or out.
 func ClearProjectDir(config Config, projectId string, subdir string) error {
 	projectPath := filepath.Join(config.ProjectDir, projectId)
 	subdirPath := filepath.Join(projectPath, subdir)
