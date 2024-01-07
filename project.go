@@ -210,4 +210,6 @@ func ClearProjectDir(config Config, projectId string, subdir string) error {
             return fmt.Errorf("ClearProjectDir: %w", err)
         }
     }
+
+	return nil
 }
