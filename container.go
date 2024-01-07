@@ -33,6 +33,7 @@ type BuildOptions struct {
 	SharedDir string
 	Document string
 	Engine Engine
+	Force bool
 }
 
 const TexLiveContainer = "texlive/texlive:latest"
@@ -141,10 +142,14 @@ func RunBuild(ctx context.Context, options BuildOptions) (string, error) {
 		})
 	}
 
-	cmd := []string{"latexmk", engine, "-silent", "-auxdir=/mnt/aux", "-outdir=/mnt/out"};
+	cmd := []string{"latexmk", engine, "-interaction=batchmode", "-file-line-error", "-auxdir=/mnt/aux", "-outdir=/mnt/out"};
 
 	if options.Document != "" {
 		cmd = append(cmd, options.Document)
+	}
+
+	if options.Force {
+		cmd = append(cmd, "-f")
 	}
 
 	resp, err := cli.ContainerCreate(
