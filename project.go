@@ -29,6 +29,7 @@ func ReadProjectInfo(config Config, projectId string) (ProjectInfo, error) {
 	if err != nil {
 		return ProjectInfo{}, fmt.Errorf("ReadProjectInfo: %w", err)
 	}
+	defer infoFile.Close()
 
 	var info ProjectInfo
 	err = json.NewDecoder(infoFile).Decode(&info)
@@ -46,6 +47,7 @@ func WriteProjectInfo(config Config, projectId string, projectInfo ProjectInfo) 
 	if err != nil {
 		return fmt.Errorf("WriteProjectInfo: %w", err)
 	}
+	defer infoFile.Close()
 
 	encoder := json.NewEncoder(infoFile)
 	encoder.SetIndent("", "  ")
@@ -121,8 +123,8 @@ type FileInfo struct {
 // and potentially large number of files can be expensive. It will
 // read from that cahe if it exists. The subdir cache should be
 // deleted by any function that modifies the files it contains.
-func ListProjectFiles(config Config, project string, subdir string) ([]FileInfo, error) {
-	projectPath := filepath.Join(config.ProjectDir, project)
+func ListProjectFiles(config Config, projectId string, subdir string) ([]FileInfo, error) {
+	projectPath := filepath.Join(config.ProjectDir, projectId)
 	filesPath := filepath.Join(projectPath, subdir)
 	cachePath := filepath.Join(projectPath, fmt.Sprintf("%scahce.json", subdir))
 
@@ -141,6 +143,8 @@ func ListProjectFiles(config Config, project string, subdir string) ([]FileInfo,
 		if err != nil {
 			return nil, fmt.Errorf("ListProjectFiles opening cache: %w", err)
 		}
+		defer cacheFile.Close()
+
 		err = json.NewDecoder(cacheFile).Decode(&fileInfo)
 		if err != nil {
 			return nil, fmt.Errorf("ListProjectFiles reading cache: %w", err)
@@ -169,9 +173,41 @@ func ListProjectFiles(config Config, project string, subdir string) ([]FileInfo,
 	if err != nil {
 		return nil, fmt.Errorf("ListProjectFiles creating cache: %w", err)
 	}
+	defer cacheFile.Close()
+
 	if err := json.NewEncoder(cacheFile).Encode(fileInfo); err != nil {
 		return nil, fmt.Errorf("ListProjectFiles: encoding cache %w", err)
 	}
 
 	return fileInfo, nil
+}
+
+func ClearProjectDir(config Config, projectId string, subdir string) error {
+	projectPath := filepath.Join(config.ProjectDir, projectId)
+	subdirPath := filepath.Join(projectPath, subdir)
+	cachePath := filepath.Join(projectPath, fmt.Sprintf("%scache.json", subdir))
+
+	// If we try to remove and get the error that the file doesn't
+	// exist, that's fine
+	if err := os.Remove(cachePath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("ClearProjectDir deleting cache: %w", err)
+	}
+
+	subdirFile, err := os.Open(subdirPath)
+    if err != nil {
+        return fmt.Errorf("ClearProjectDir: %w", err)
+    }
+    defer subdirFile.Close()
+
+    names, err := subdirFile.Readdirnames(-1)
+    if err != nil {
+        return fmt.Errorf("CleanProjectDir: %w", err)
+    }
+
+    for _, name := range names {
+        err = os.RemoveAll(filepath.Join(subdirPath, name))
+        if err != nil {
+            return fmt.Errorf("ClearProjectDir: %w", err)
+        }
+    }
 }
