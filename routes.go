@@ -16,7 +16,7 @@ func SetupRoutes(router *chi.Mux) {
 	// Delete a project
 	router.Delete("/project/{projectName}", func(w http.ResponseWriter, r *http.Request) {})
 	// Run project build
-	router.Post("/project/build", func(w http.ResponseWriter, r *http.Request) {})
+	router.Post("/project/{projectName}/build", func(w http.ResponseWriter, r *http.Request) {})
 	// Get list of project source files
 	router.Get("/project/{projectName}/src", func(w http.ResponseWriter, r *http.Request) {})
 	// Create or update project source file
