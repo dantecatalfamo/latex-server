@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha512"
 	"encoding/json"
@@ -214,4 +215,39 @@ func ClearProjectDir(config Config, projectId string, subdir string) error {
     }
 
 	return nil
+}
+
+type ProjectBuildOptions struct {
+	Debug bool // Save aux directory
+	Force bool // Run latex in nonstop mode, and latexmk with force flag
+	FileLineError bool // Erorrs are in c-style file:line:error format
+	Engine Engine // LaTeX engine to use
+	Document string // The name of the main document
+}
+
+func BuildProject(ctx context.Context, config Config, projectId string, options ProjectBuildOptions) (string, error) {
+	projectPath := filepath.Join(config.ProjectDir, projectId)
+	srcPath := filepath.Join(projectPath, "src")
+	outPath := filepath.Join(projectPath, "out")
+	var auxPath string
+	if options.Debug {
+		auxPath = filepath.Join(projectPath, "aux")
+	}
+
+	buildOut, err := RunBuild(ctx, BuildOptions{
+		AuxDir: auxPath,
+		OutDir: outPath,
+		TexDir: srcPath,
+		// SharedDir: "", // TODO Make shared dir work
+		Document: options.Document,
+		Engine: options.Engine,
+		Force: options.Force,
+		FileLineError: options.FileLineError,
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("BuildProject: %w", err)
+	}
+
+	return buildOut, nil
 }
