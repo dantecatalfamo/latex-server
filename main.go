@@ -11,6 +11,8 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+const listenAddress = "localhost:3344"
+
 type Config struct {
 	ProjectDir string
 }
@@ -27,7 +29,8 @@ func main() {
 		config := Config{ ProjectDir: projectsDir }
 		mux := chi.NewMux()
 		SetupRoutes(config, mux)
-		err := http.ListenAndServe("localhost:3344", mux)
+		log.Printf("Listening on http://%s", listenAddress)
+		err := http.ListenAndServe(listenAddress, mux)
 		if err != nil {
 			log.Panic(err)
 		}

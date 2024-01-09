@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha512"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,6 +22,16 @@ type ProjectInfo struct {
 	Owner string        `json:"owner"`
 	CreatedAt time.Time `json:"createdAt"`
 	LastBuild time.Time `json:"lastBuild"`
+	BuildStatus string  `josn:"buildStatus"`
+}
+
+// ValidateProjectId checks if projectId is a valid ProjectID string
+func ValidateProjectId(projectId string) bool {
+	dst := make([]byte, hex.DecodedLen(len(projectId)))
+	if _, err := hex.Decode(dst, []byte(projectId)); err != nil {
+		return false
+	}
+	return true
 }
 
 // ReadProjectInfo reads the ProjectInfo of a project.
