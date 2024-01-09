@@ -1,4 +1,4 @@
-module github.com/dantecatalfamo/latex-builder
+module github.com/dantecatalfamo/latex-server
 
 go 1.20
 
