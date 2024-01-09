@@ -1,16 +1,32 @@
 package main
 
 import (
+	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 )
 
-func SetupRoutes(router *chi.Mux) {
+func SetupRoutes(config Config, router *chi.Mux) {
 	// List projects
 	router.Get("/projects", func(w http.ResponseWriter, r *http.Request) {})
 	// Create new project with randomly generated ID
-	router.Post("/projects", func(w http.ResponseWriter, r *http.Request) {})
+	router.Post("/projects", func(w http.ResponseWriter, r *http.Request) {
+		projectId, err := NewProject(config, "")
+		if err != nil {
+			http.Error(w, "Failed to create new project", http.StatusInternalServerError)
+			log.Printf("POST /projects: %s", err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(struct { id string }{ id: projectId })
+		if err != nil {
+			http.Error(w, "Failed to serialize json", http.StatusInternalServerError )
+			log.Printf("POST /projects: %s", err)
+			return
+		}
+	})
 	// Get project information
 	router.Get("/project/{projectName}", func(w http.ResponseWriter, r *http.Request) {})
 	// Delete a project
