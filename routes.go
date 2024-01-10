@@ -22,7 +22,8 @@ func SetupRoutes(config Config, router *chi.Mux) {
 			log.Printf("POST /projects: %s", err)
 			return
 		}
-		log.Printf("new project: %s", projectId)
+
+		log.Printf("New project: %s", projectId)
 		w.Header().Set("Content-Type", "application/json")
 		err = json.NewEncoder(w).Encode(NewProjectResponse{ Id: projectId })
 		if err != nil {
@@ -34,7 +35,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 	// Get project information
 	router.Get("/project/{projectName}", func(w http.ResponseWriter, r *http.Request) {
 		projectId := chi.URLParam(r, "projectName")
-		if !ValidateProjectId(projectId) {
+		if !ValidateProjectId(config, projectId) {
 			http.Error(w, "Invalid project ID", http.StatusBadRequest)
 			log.Printf("Invalid project id: %s", projectId)
 			return
@@ -42,10 +43,12 @@ func SetupRoutes(config Config, router *chi.Mux) {
 
 		info, err := ReadProjectInfo(config, projectId)
 		if err != nil {
-			http.Error(w, "Failed to read projet into", http.StatusInternalServerError)
+			http.Error(w, "Failed to read project info", http.StatusBadRequest)
 			log.Printf("GET /project/%s: %s", projectId, err)
 			return
 		}
+
+		w.Header().Set("Content-Type", "application/json")
 		err = json.NewEncoder(w).Encode(info)
 		if err != nil {
 			http.Error(w, "Failed to serialize json", http.StatusInternalServerError)
@@ -54,7 +57,21 @@ func SetupRoutes(config Config, router *chi.Mux) {
 		}
 	})
 	// Delete a project
-	router.Delete("/project/{projectName}", func(w http.ResponseWriter, r *http.Request) {})
+	router.Delete("/project/{projectName}", func(w http.ResponseWriter, r *http.Request) {
+		projectId := chi.URLParam(r, "projectName")
+		if !ValidateProjectId(config, projectId) {
+			http.Error(w, "Invalid project ID", http.StatusBadRequest)
+			log.Printf("Invalid project id: %s", projectId)
+			return
+		}
+
+		log.Printf("Delete project: %s", projectId)
+		err := DeleteProject(config, projectId)
+		if err != nil {
+			http.Error(w, "Invalid project ID", http.StatusBadRequest)
+			log.Printf("DELETE /project/%s: %s", projectId, err)
+		}
+	})
 	// Run project build
 	router.Post("/project/{projectName}/build", func(w http.ResponseWriter, r *http.Request) {})
 	// Get list of project source files

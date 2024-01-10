@@ -15,6 +15,9 @@ import (
 	"time"
 )
 
+// The Project ID is a hex representation of 24 random bytes
+const ProjectIdByteLength = 24
+
 // We should be using a database like SQLite3 for this at some point,
 // but for now we're just playing around
 type ProjectInfo struct {
@@ -26,9 +29,17 @@ type ProjectInfo struct {
 }
 
 // ValidateProjectId checks if projectId is a valid ProjectID string
-func ValidateProjectId(projectId string) bool {
+func ValidateProjectId(config Config, projectId string) bool {
+	if len(projectId) != ProjectIdByteLength * 2 {
+		return false
+	}
 	dst := make([]byte, hex.DecodedLen(len(projectId)))
 	if _, err := hex.Decode(dst, []byte(projectId)); err != nil {
+		return false
+	}
+
+	projectPath := filepath.Join(config.ProjectDir, projectId)
+	if _, err := os.Stat(projectPath); err != nil {
 		return false
 	}
 	return true
@@ -78,7 +89,7 @@ func NewProject(config Config, owner string) (string, error) {
 	var id string
 
 	for {
-		var randBytes [24]byte
+		var randBytes [ProjectIdByteLength]byte
 		_, err := rand.Read(randBytes[:])
 		if err != nil {
 			return "", fmt.Errorf("NewProject random bytes: %w", err)
@@ -261,4 +272,13 @@ func BuildProject(ctx context.Context, config Config, projectId string, options 
 	}
 
 	return buildOut, nil
+}
+
+func DeleteProject(config Config, projectId string) error {
+	projectPath := filepath.Join(config.ProjectDir, projectId)
+	err := os.RemoveAll(projectPath)
+	if err != nil {
+		return fmt.Errorf("DeleteProject: %w", err)
+	}
+	return nil
 }
