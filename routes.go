@@ -102,6 +102,9 @@ func SetupRoutes(config Config, router *chi.Mux) {
 	// Retrieve a project source file with the specified hash
 	router.Get("/project/{projectName}/src/{fileHash}", func(w http.ResponseWriter, r *http.Request) {})
 	// Delete a project souce file with the specified hash
+	// TODO maybe this should be a POST endpoint that accepts a list
+	// of files so we don't have to keep re-creating the hash index if
+	// we want to delete multiple files
 	router.Delete("/project/{projectName}/src/{fileHash}", func(w http.ResponseWriter, r *http.Request) {})
 	// Get a list of project aux files (if created)
 	router.Get("/project/{projectName}/aux", func(w http.ResponseWriter, r *http.Request) {})
