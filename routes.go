@@ -75,7 +75,28 @@ func SetupRoutes(config Config, router *chi.Mux) {
 	// Run project build
 	router.Post("/project/{projectName}/build", func(w http.ResponseWriter, r *http.Request) {})
 	// Get list of project source files
-	router.Get("/project/{projectName}/src", func(w http.ResponseWriter, r *http.Request) {})
+	router.Get("/project/{projectName}/src", func(w http.ResponseWriter, r *http.Request) {
+		projectId := chi.URLParam(r, "projectName")
+		if !ValidateProjectId(config, projectId) {
+			http.Error(w, "Invalid project ID", http.StatusBadRequest)
+			log.Printf("Invalid project id: %s", projectId)
+			return
+		}
+
+		files, err := ListProjectFiles(config, projectId, "src")
+		if err != nil {
+			http.Error(w, "Failed to list project files", http.StatusInternalServerError)
+			log.Printf("GET /project/%s/src: %s", projectId, err)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(files)
+		if err != nil {
+			http.Error(w, "Failed to serialize json", http.StatusInternalServerError)
+			log.Printf("GET /project/%s/src: %s", projectId, err)
+		}
+	})
 	// Create or update project source file
 	router.Post("/project/{projectName}/src", func(w http.ResponseWriter, r *http.Request) {})
 	// Retrieve a project source file with the specified hash

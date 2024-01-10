@@ -9,9 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -149,7 +151,7 @@ type FileInfo struct {
 func ListProjectFiles(config Config, projectId string, subdir string) ([]FileInfo, error) {
 	projectPath := filepath.Join(config.ProjectDir, projectId)
 	filesPath := filepath.Join(projectPath, subdir)
-	cachePath := filepath.Join(projectPath, fmt.Sprintf("%scahce.json", subdir))
+	cachePath := filepath.Join(projectPath, fmt.Sprintf("%s_cahce.json", subdir))
 
 	if _, err := os.Stat(projectPath); os.IsNotExist(err) {
 		return nil, errors.New("Project doesn't exist")
@@ -181,13 +183,17 @@ func ListProjectFiles(config Config, projectId string, subdir string) ([]FileInf
 			log.Printf("ListProjectFiles of \"%s\", path \"%s\": %s", filesPath, path, err)
 			return nil
 		}
-		size := info.Size()
+		if info.IsDir() {
+			return nil
+		}
 
-		fileData, err := fs.ReadFile(nil, path)
+		size := info.Size()
+		fileData, err := ioutil.ReadFile(path)
 		hash := sha512.Sum512(fileData)
 		digest := fmt.Sprintf("%x", hash)
+		partialPath := strings.TrimPrefix(path, filesPath)
 
-		fileInfo = append(fileInfo, FileInfo{ Path: path, Sha512Hash: digest, Size: uint64(size) })
+		fileInfo = append(fileInfo, FileInfo{ Path: partialPath, Sha512Hash: digest, Size: uint64(size) })
 
 		return nil
 	})
