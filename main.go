@@ -16,6 +16,7 @@ const listenAddress = "localhost:3344"
 type Config struct {
 	ProjectDir string // Root of all projects
 	MaxProjectBuildTime time.Duration // Max time a project can build
+	Database *Database
 }
 
 func main() {
@@ -25,17 +26,23 @@ func main() {
 	command := os.Args[1]
 	switch command {
 	case "server":
-		if len(os.Args) < 3 { usage() }
+		if len(os.Args) < 4 { usage() }
 		projectsDir := os.Args[2]
+		databasePath := os.Args[3]
+		db, err := NewDatabse(databasePath)
+		if err != nil {
+			log.Fatalf("Failed to open database: %s", err)
+		}
 		config := Config{
 			ProjectDir: projectsDir,
 			MaxProjectBuildTime: 30 * time.Second,
+			Database: db,
 		}
-		log.Printf("ProjectsDir: %s, Max Build Time: %s", config.ProjectDir, config.MaxProjectBuildTime)
+		log.Printf("ProjectsDir: %s, Max Build Time: %s, Database: %v", config.ProjectDir, config.MaxProjectBuildTime, config.Database)
 		mux := chi.NewMux()
 		SetupRoutes(config, mux)
 		log.Printf("Listening on http://%s", listenAddress)
-		err := http.ListenAndServe(listenAddress, mux)
+		err = http.ListenAndServe(listenAddress, mux)
 		if err != nil {
 			log.Panic(err)
 		}
@@ -68,6 +75,6 @@ func main() {
 }
 
 func usage() {
-	fmt.Printf("usage: latex-server <command>\n  server <projects root>: Run server\n  pull: Pull latest image\n")
+	fmt.Printf("usage: latex-server <command>\n  server <projects root> <database file>\n    Run server\n  pull\n    Pull latest image\n")
 	os.Exit(1)
 }

@@ -11,6 +11,9 @@ import (
 
 type Engine string
 
+
+// TODO Make these match the options sent in by clients and translated
+// internally
 const (
 	EnginePDF Engine = "-pdf"
 	EngineLua Engine = "-pdflua"

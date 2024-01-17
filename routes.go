@@ -11,32 +11,30 @@ import (
 )
 
 func SetupRoutes(config Config, router *chi.Mux) {
+	// TODO Add route to list builds/get specific/latest build info
+	// Maybe /user/project/builds (list)
+	//       /user/project/builds/(id|latest) (build info)
 	// List projects
-	router.Get("/projects", func(w http.ResponseWriter, r *http.Request) {})
+	// router.Get("/projects", func(w http.ResponseWriter, r *http.Request) {})
 	// Create new project with randomly generated ID
-	router.Post("/projects", func(w http.ResponseWriter, r *http.Request) {
-		type NewProjectResponse struct {
-			Id string `json:"id"`
-		}
-		projectId, err := NewProject(config, "")
-		if err != nil {
+	router.Post("/{user}", func(w http.ResponseWriter, r *http.Request) {
+		// TODO get new project name from POST form
+		project := "test"
+		user := chi.URLParam(r, "user")
+		if err := NewProject(config, user, project); err != nil {
 			http.Error(w, "Failed to create new project", http.StatusInternalServerError)
-			log.Printf("POST /projects: %s", err)
+			log.Printf("POST /%s: %s", user, err)
 			return
 		}
 
-		log.Printf("New project: %s", projectId)
-		w.Header().Set("Content-Type", "application/json")
-		err = json.NewEncoder(w).Encode(NewProjectResponse{ Id: projectId })
-		if err != nil {
-			http.Error(w, "Failed to serialize json", http.StatusInternalServerError )
-			log.Printf("POST /projects: %s", err)
-			return
-		}
+		log.Printf("New project: %s/%s", user, project)
+		// w.Header().Set("Content-Type", "application/json")
 	})
 	// Get project information
-	router.Get("/project/{projectName}", func(w http.ResponseWriter, r *http.Request) {
-		projectId := chi.URLParam(r, "projectName")
+	router.Get("/{user}/{project}", func(w http.ResponseWriter, r *http.Request) {
+		user := chi.URLParam(r, "user")
+		project := chi.URLParam(r, "project")
+
 		if !ValidateProjectId(config, projectId) {
 			http.Error(w, "Invalid project ID", http.StatusBadRequest)
 			log.Printf("Invalid project id: %s", projectId)

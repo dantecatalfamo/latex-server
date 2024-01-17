@@ -2,14 +2,10 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha512"
-	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -17,123 +13,31 @@ import (
 	"time"
 )
 
-// The Project ID is a hex representation of 24 random bytes
-const ProjectIdByteLength = 24
-
-// We should be using a database like SQLite3 for this at some point,
-// but for now we're just playing around
-type ProjectInfo struct {
-	Name string          `json:"name"`
-	Owner string         `json:"owner"`
-	CreatedAt time.Time  `json:"createdAt"`
-	LastBuild time.Time  `json:"lastBuild"`
-	BuildTime string     `json:"buildTime"`
-	BuildStatus string   `josn:"buildStatus"`
-}
-
-// ValidateProjectId checks if projectId is a valid ProjectID string
-func ValidateProjectId(config Config, projectId string) bool {
-	if len(projectId) != ProjectIdByteLength * 2 {
-		return false
-	}
-	dst := make([]byte, hex.DecodedLen(len(projectId)))
-	if _, err := hex.Decode(dst, []byte(projectId)); err != nil {
-		return false
-	}
-
-	projectPath := filepath.Join(config.ProjectDir, projectId)
-	if _, err := os.Stat(projectPath); err != nil {
-		return false
-	}
-	return true
-}
-
-// ReadProjectInfo reads the ProjectInfo of a project.
-func ReadProjectInfo(config Config, projectId string) (ProjectInfo, error) {
-	infoPath := filepath.Join(config.ProjectDir, projectId, "info.json")
-	infoFile, err := os.Open(infoPath)
+// NewProject creates a new project belonging to owner with name, and
+// creates the appropriate subdirectories
+func NewProject(config Config, user string, name string) error {
+	userId, err := config.Database.GetUserId(user)
 	if err != nil {
-		return ProjectInfo{}, fmt.Errorf("ReadProjectInfo: %w", err)
-	}
-	defer infoFile.Close()
-
-	var info ProjectInfo
-	err = json.NewDecoder(infoFile).Decode(&info)
-	if err != nil {
-		return ProjectInfo{}, fmt.Errorf("ReadProjectInfo: %w", err)
+		return fmt.Errorf("NewProject: %w", err)
 	}
 
-	return info, nil
-}
-
-// WriteProjectInfo writes ProjectInfo for a project.
-func WriteProjectInfo(config Config, projectId string, projectInfo ProjectInfo) error {
-	infoPath := filepath.Join(config.ProjectDir, projectId, "info.json")
-	infoFile, err := os.Create(infoPath)
-	if err != nil {
-		return fmt.Errorf("WriteProjectInfo: %w", err)
-	}
-	defer infoFile.Close()
-
-	encoder := json.NewEncoder(infoFile)
-	encoder.SetIndent("", "  ")
-	err = encoder.Encode(projectInfo)
-	if err != nil {
-		return fmt.Errorf("WriteProjectInfo: %w", err)
+	if _, err := config.Database.conn.Exec("INSERT INTO projects (name, user_id) VALUES (?, ?)", name, userId); err != nil {
+		return fmt.Errorf("NewProject: %w", err)
 	}
 
-	return nil
-}
-
-// NewProject creates a new project and gives it a random ID belonging
-// to owner. It returns the ID.
-func NewProject(config Config, owner string) (string, error) {
-	tries := 0
-	var id string
-
-	for {
-		var randBytes [ProjectIdByteLength]byte
-		_, err := rand.Read(randBytes[:])
-		if err != nil {
-			return "", fmt.Errorf("NewProject random bytes: %w", err)
-		}
-		id = fmt.Sprintf("%x", randBytes)
-
-		fullPath := filepath.Join(config.ProjectDir, id)
-		if _, err := os.Stat(fullPath); err == nil {
-			// Somehow random id already exists
-			tries++
-			if tries > 16 {
-				return "", errors.New("NewProject randomness is broken")
-			}
-			continue
-		}
-
-		break
-	}
-
-	projectPath := filepath.Join(config.ProjectDir, id)
+	projectPath := filepath.Join(config.ProjectDir, user, name)
 	if err := os.Mkdir(projectPath, os.ModePerm); err != nil {
-		return "", fmt.Errorf("NewProject Mkdir: %w", err)
+		return fmt.Errorf("NewProject Mkdir: %w", err)
 	}
 
 	for _, subdir := range([]string{"aux", "out", "src"}) {
 		subDirPath := filepath.Join(projectPath, subdir)
 		if err := os.Mkdir(subDirPath, os.ModePerm); err != nil {
-			return "", fmt.Errorf("NewProject subdir: %w", err)
+			return fmt.Errorf("NewProject subdir: %w", err)
 		}
 	}
 
-	info := ProjectInfo{
-		Owner: owner,
-		CreatedAt: time.Now().UTC(),
-	}
-
-	if err := WriteProjectInfo(config, id, info); err != nil {
-		return "", fmt.Errorf("NewProject: %w", err)
-	}
-
-	return id, nil
+	return nil
 }
 
 type FileInfo struct {
@@ -144,44 +48,60 @@ type FileInfo struct {
 
 // ListProjectFiles returns a list of files in the subdir of a project
 // directory.
-//
-// It will cache the list after creating it because hashing an unknown
-// and potentially large number of files can be expensive. It will
-// read from that cahe if it exists. The subdir cache should be
-// deleted by any function that modifies the files it contains.
-func ListProjectFiles(config Config, projectId string, subdir string) ([]FileInfo, error) {
-	projectPath := filepath.Join(config.ProjectDir, projectId)
-	filesPath := filepath.Join(projectPath, subdir)
-	cachePath := filepath.Join(projectPath, fmt.Sprintf("%s_cahce.json", subdir))
+func ListProjectFiles(config Config, user string, projectName string, subdir string) ([]FileInfo, error) {
+	projectId, err := config.Database.GetProjectId(user, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("ListProjectFiles: %w", err)
+	}
 
-	if _, err := os.Stat(projectPath); os.IsNotExist(err) {
-		return nil, errors.New("Project doesn't exist")
+	rows, err := config.Database.conn.Query("SELECT path, size, sha512hash FROM files WHERE project_id = ?", projectId)
+	if err != nil {
+		return nil, fmt.Errorf("ListProjectFiles: %w", err)
 	}
-	if _, err := os.Stat(filesPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("Project %s directory doesn't exist", subdir)
-	}
+
+	defer rows.Close()
 
 	var fileInfo []FileInfo
 
-	// If cache exists, use it. It should be deleted if anything has changed
-	if _, err := os.Stat(cachePath); err == nil {
-		cacheFile, err := os.Open(cachePath)
-		if err != nil {
-			return nil, fmt.Errorf("ListProjectFiles opening cache: %w", err)
+	for rows.Next() {
+		info := FileInfo{}
+		if err := rows.Scan(&info.Path, &info.Size, &info.Sha512Hash); err != nil {
+			return nil, fmt.Errorf("ListProjectFiles row scan: %w", err)
 		}
-		defer cacheFile.Close()
-
-		err = json.NewDecoder(cacheFile).Decode(&fileInfo)
-		if err != nil {
-			return nil, fmt.Errorf("ListProjectFiles reading cache: %w", err)
-		}
-
-		return fileInfo, nil
+		fileInfo = append(fileInfo, info)
 	}
 
-	filepath.Walk(filesPath, func(path string, info fs.FileInfo, err error) error {
+	if rows.Err() != nil {
+		return nil, fmt.Errorf("ListProjectFiles rows error: %w", rows.Err())
+	}
+
+	return fileInfo, nil
+}
+
+// ScanProjectFiles deletes the file list from a project's subdir and
+// re-scans them
+func ScanProjectFiles(config Config, user string, projectName string, subdir string) error {
+	projectPath := filepath.Join(config.ProjectDir, user, projectName)
+	filesPath := filepath.Join(projectPath, subdir)
+
+	projectId, err := config.Database.GetProjectId(user, projectName)
+	if err != nil {
+		return fmt.Errorf("ScanProjectFiles: %w", err)
+	}
+
+	tx, err := config.Database.conn.Begin()
+	if err != nil {
+		return fmt.Errorf("ScanProjectFiles begin transaction: %w", err)
+	}
+
+	if _, err := tx.Exec("DELETE FROM files WHERE project_id = ? AND subdir = ?", projectId, subdir); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("ScanProjectFiles deleting files cache: %w", err)
+	}
+
+	err = filepath.Walk(filesPath, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
-			log.Printf("ListProjectFiles of \"%s\", path \"%s\": %s", filesPath, path, err)
+			log.Printf("ScanProjectFiles of \"%s\", path \"%s\": %s", filesPath, path, err)
 			return nil
 		}
 		if info.IsDir() {
@@ -189,51 +109,56 @@ func ListProjectFiles(config Config, projectId string, subdir string) ([]FileInf
 		}
 
 		size := info.Size()
-		fileData, err := ioutil.ReadFile(path)
+		fileData, err := os.ReadFile(path)
 		hash := sha512.Sum512(fileData)
 		digest := fmt.Sprintf("%x", hash)
 		partialPath := strings.TrimPrefix(path, filesPath)
 
-		fileInfo = append(fileInfo, FileInfo{ Path: partialPath, Sha512Hash: digest, Size: uint64(size) })
+		if _, err := tx.Exec(
+			"INSERT INTO files (path, size, sha512sum) VALUES (?, ?, ?)",
+			partialPath,
+			size,
+			digest,
+		); err != nil {
+			return fmt.Errorf("ScanProjectFiles insert row: %w", err)
+		}
 
 		return nil
 	})
 
-	cacheFile, err := os.Create(cachePath)
 	if err != nil {
-		return nil, fmt.Errorf("ListProjectFiles creating cache: %w", err)
-	}
-	defer cacheFile.Close()
-
-	if err := json.NewEncoder(cacheFile).Encode(fileInfo); err != nil {
-		return nil, fmt.Errorf("ListProjectFiles: encoding cache %w", err)
+		tx.Rollback()
+		return fmt.Errorf("ScanProjectFiles walk: %w", err)
 	}
 
-	return fileInfo, nil
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("ScanProjectFiles commit transaction: %w", err)
+	}
+
+	return nil
 }
 
 // ClearProjectDir empties a project's subdirectory. This would
 // usually be something like src, aux, or out.
-func ClearProjectDir(config Config, projectId string, subdir string) error {
-	projectPath := filepath.Join(config.ProjectDir, projectId)
+func ClearProjectDir(config Config, user string, projectName string, subdir string) error {
+	projectPath := filepath.Join(config.ProjectDir, user, projectName)
 	subdirPath := filepath.Join(projectPath, subdir)
-	cachePath := filepath.Join(projectPath, fmt.Sprintf("%scache.json", subdir))
 
-	// If we try to remove and get the error that the file doesn't
-	// exist, that's fine
-	if err := os.Remove(cachePath); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("ClearProjectDir deleting cache: %w", err)
+	projectId, err := config.Database.GetProjectId(user, projectName)
+	if err != nil {
+		return fmt.Errorf("ClearProjectDir: %w", err)
 	}
 
 	subdirFile, err := os.Open(subdirPath)
     if err != nil {
-        return fmt.Errorf("ClearProjectDir: %w", err)
+        return fmt.Errorf("ClearProjectDir opening subdir: %w", err)
     }
     defer subdirFile.Close()
 
     names, err := subdirFile.Readdirnames(-1)
     if err != nil {
-        return fmt.Errorf("CleanProjectDir: %w", err)
+        return fmt.Errorf("CleanProjectDir reading subdir: %w", err)
     }
 
     for _, name := range names {
@@ -243,40 +168,49 @@ func ClearProjectDir(config Config, projectId string, subdir string) error {
         }
     }
 
+	if _, err = config.Database.conn.Exec("DELETE FROM files WHERE project_id = ? AND subdir = ?", projectId, subdir); err != nil {
+		return fmt.Errorf("ClearProjectDir deleting files cache: %w", err)
+	}
+
 	return nil
 }
 
 // Options for BuildProject
 type ProjectBuildOptions struct {
-	Force bool // Run latex in nonstop mode, and latexmk with force flag
-	FileLineError bool // Erorrs are in c-style file:line:error format
-	Engine Engine // LaTeX engine to use
-	Document string // The name of the main document
+	Force bool `json:"force"` // Run latex in nonstop mode, and latexmk with force flag
+	FileLineError bool `json:"fileLineError"` // Erorrs are in c-style file:line:error format
+	Engine Engine `json:"engine"` // LaTeX engine to use
+	Document string `json:"document"` // The name of the main document
 }
 
 // BuildProject builds a project using latexmk using the options
 // provided. It retuens the stdout of latexmk.
-func BuildProject(ctx context.Context, config Config, projectId string, options ProjectBuildOptions) (string, error) {
-	projectPath := filepath.Join(config.ProjectDir, projectId)
+func BuildProject(ctx context.Context, config Config, user string, projectName string, options ProjectBuildOptions) (string, error) {
+	projectPath := filepath.Join(config.ProjectDir, user, projectName)
 	srcPath := filepath.Join(projectPath, "src")
 	outPath := filepath.Join(projectPath, "out")
 	auxPath := filepath.Join(projectPath, "aux")
 
-	projectInfo, err := ReadProjectInfo(config, projectId)
+	projectId, err := config.Database.GetProjectId(user, projectName)
 	if err != nil {
 		return "", fmt.Errorf("BuildProject: %w", err)
 	}
 
-	beginTime := time.Now()
-
-	projectInfo.LastBuild = beginTime.UTC()
-	projectInfo.BuildStatus = "running"
-	projectInfo.BuildTime = ""
-
-	if err := WriteProjectInfo(config, projectId, projectInfo); err != nil {
-		return "", fmt.Errorf("BuildProject before build: %w", err)
+	opts, err := json.Marshal(options)
+	if err != nil {
+		return "", fmt.Errorf("BuildProject marshall: %w", err)
+	}
+	result, err := config.Database.conn.Exec("INSERT INTO builds (project_id, status, options) VALUES (?, ?, ?)", projectId, "running", opts)
+	if err != nil {
+		return "", fmt.Errorf("BuildProject db insert build: %w", err)
 	}
 
+	buildId, err := result.LastInsertId()
+	if err != nil {
+		return "", fmt.Errorf("BuildProject get buildId: %w", err)
+	}
+
+	beginTime := time.Now()
 	timeoutCtx, cancel := context.WithTimeout(ctx, config.MaxProjectBuildTime)
 
 	buildOut, err := RunBuild(timeoutCtx, BuildOptions{
@@ -292,34 +226,44 @@ func BuildProject(ctx context.Context, config Config, projectId string, options 
 	buildTime := time.Since(beginTime)
 	cancel() // Don't leak the context
 
-	projectInfo, err = ReadProjectInfo(config, projectId)
 	if err != nil {
-		return "", fmt.Errorf("BuildProject: %w", err)
-	}
-
-	projectInfo.BuildStatus = "finished"
-	projectInfo.BuildTime = buildTime.String()
-
-	if err != nil {
-		projectInfo.BuildStatus = "failed"
-		if err := WriteProjectInfo(config, projectId, projectInfo); err != nil {
-			return "", fmt.Errorf("BuildProject after failed build: %w", err)
+		if _, err := config.Database.conn.Exec(
+			"UPDATE builds SET status = 'finished', build_time = ? WHERE id = ?",
+			buildTime.Seconds(),
+			buildId,
+		); err != nil {
+			return "", fmt.Errorf("BuildProject updating db failed build: %w", err)
 		}
-		return "", fmt.Errorf("BuildProject: %w", err)
+
+		return "", fmt.Errorf("BuildProject failed build: %w", err)
 	}
 
-	if err := WriteProjectInfo(config, projectId, projectInfo); err != nil {
-		return "", fmt.Errorf("BuildProject after build: %w", err)
+	if _, err := config.Database.conn.Exec(
+		"UPDATE builds SET status = 'finished', build_time = ? WHERE id = ?",
+		buildTime.Seconds(),
+		buildId,
+	); err != nil {
+		return "", fmt.Errorf("BuildProject updating db finished build: %w", err)
 	}
 
 	return buildOut, nil
 }
 
-func DeleteProject(config Config, projectId string) error {
-	projectPath := filepath.Join(config.ProjectDir, projectId)
-	err := os.RemoveAll(projectPath)
+func DeleteProject(config Config, user, projectName string) error {
+	projectPath := filepath.Join(config.ProjectDir, user, projectName)
+
+	projectId, err := config.Database.GetProjectId(user, projectName)
 	if err != nil {
+		return fmt.Errorf("DeleteProject get projec id: %w", err)
+	}
+
+	if err := os.RemoveAll(projectPath); err != nil {
 		return fmt.Errorf("DeleteProject: %w", err)
 	}
+
+	if _, err := config.Database.conn.Exec("DELETE FROM projects WHERE id = ?", projectId); err != nil {
+		return fmt.Errorf("DeleteProject delete db project: %w", err)
+	}
+
 	return nil
 }

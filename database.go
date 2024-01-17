@@ -3,12 +3,13 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 type Database struct {
-	db *sql.DB
+	conn *sql.DB
 }
 
 func NewDatabse(path string) (*Database, error) {
@@ -17,7 +18,7 @@ func NewDatabse(path string) (*Database, error) {
 		return nil, fmt.Errorf("NewDatabase: %w", err)
 	}
 
-	database := &Database{ db: db }
+	database := &Database{ conn: db }
 	if err := database.Migrate(); err != nil {
 		return nil, fmt.Errorf("NewDatabse: %w", err)
 	}
@@ -26,7 +27,7 @@ func NewDatabse(path string) (*Database, error) {
 }
 
 func (db *Database) Migrate() error {
-	row := db.db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'schema_migration'")
+	row := db.conn.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'schema_migration'")
 	if row.Err() != nil {
 		return fmt.Errorf("Migrate query row sqlite_master: %w", row.Err())
 	}
@@ -41,7 +42,7 @@ func (db *Database) Migrate() error {
 
 	// Tables don't exist, start migrating from 0
 	if tablesExist > 0 {
-		row = db.db.QueryRow("SELECT version FROM schema_migration")
+		row = db.conn.QueryRow("SELECT version FROM schema_migration")
 		if row.Err() != nil {
 			return fmt.Errorf("Migrate query row schema_migration: %w", row.Err())
 		}
@@ -57,14 +58,67 @@ func (db *Database) Migrate() error {
 	}
 
 	for index, migration := range migrations[lowestMigration:] {
-		if _, err := db.db.Exec(migration); err != nil {
+		log.Printf("Running database migration %d", index)
+		if _, err := db.conn.Exec(migration); err != nil {
 			return fmt.Errorf("Migrate applying migration: %w", err)
 		}
 
-		if _, err := db.db.Exec("UPDATE schema_migration SET version = ?", index + 1); err != nil {
+		if _, err := db.conn.Exec("UPDATE schema_migration SET version = ?", index + 1); err != nil {
 			return fmt.Errorf("Migrate: applying migration: %w", err)
 		}
 	}
 
 	return nil
+}
+
+type ProjectInfo struct {
+	Name string `json:"name"`
+	Public bool `json:"public"`
+	CreatedAt string `json:"createdAt"`
+	LatestBuild BuildInfo `json:"latestBuild"`
+}
+
+type BuildInfo struct {
+	BuildStart string `json:"buildStart"`
+	BuildTime float64 `json:"buildTime"`
+	Status string `json:"status"`
+	Options ProjectBuildOptions `json:"options"`
+}
+
+func (db *Database) GetProjectInfo (ProjectInfo, error) {
+
+}
+
+func (db *Database) GetProjectId(user string, project string) (int, error) {
+	userId, err := db.GetUserId(project)
+	if err != nil {
+		return 0, fmt.Errorf("Database.GetProjectId: %w", err)
+	}
+
+	// TODO This should be a join instead of two separate queries
+	row := db.conn.QueryRow("SELECT id FROM projects WHERE user_id = ? AND name = ?", userId, project)
+	if row.Err() != nil {
+		return 0, fmt.Errorf("Database.GetProjectId query: %w", err)
+	}
+
+	var id int
+	if err := row.Scan(&id); err != nil {
+		return 0, err
+	}
+
+	return id, nil
+}
+
+func (db *Database) GetUserId(user string) (int, error) {
+	row := db.conn.QueryRow("SELECT id FROM users WHERE name = ?", user)
+	if row.Err() != nil {
+		return 0, fmt.Errorf("Database.GetUserId query: %w", row.Err())
+	}
+
+	var id int
+	if err := row.Scan(&id); err != nil {
+		return 0, fmt.Errorf("Database.GetUserId scan: %w", err)
+	}
+
+	return id, nil
 }
