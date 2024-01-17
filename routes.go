@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -73,7 +75,63 @@ func SetupRoutes(config Config, router *chi.Mux) {
 		}
 	})
 	// Run project build
-	router.Post("/project/{projectName}/build", func(w http.ResponseWriter, r *http.Request) {})
+	router.Post("/project/{projectName}/build", func(w http.ResponseWriter, r *http.Request) {
+		projectId := chi.URLParam(r, "projectName")
+		if !ValidateProjectId(config, projectId) {
+			http.Error(w, "Invalid project ID", http.StatusBadRequest)
+			log.Printf("Invalid project id: %s", projectId)
+			return
+		}
+
+		if err := ClearProjectDir(config, projectId, "aux"); err != nil {
+			http.Error(w, "Failed to build", http.StatusInternalServerError)
+			log.Printf("POST /project/%s/build: %s", projectId, err)
+			return
+		}
+		if err := ClearProjectDir(config, projectId, "out"); err != nil {
+			http.Error(w, "Failed to build", http.StatusInternalServerError)
+			log.Printf("POST /project/%s/build: %s", projectId, err)
+			return
+		}
+
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "Unable to process request", http.StatusBadRequest)
+			log.Printf("POST /project/%s/build: %s", projectId, err)
+			return
+		}
+
+		var engine Engine
+		switch r.Form.Get("engine") {
+		case "pdf":
+			engine = EnginePDF
+		case "lua":
+			engine = EngineLua
+		case "xe":
+			engine = EngineXeTeX
+		}
+
+		options := ProjectBuildOptions{
+			Force: r.Form.Has("force"),
+			FileLineError: r.Form.Has("fileLineError"),
+			Document: r.Form.Get("document"),
+			Engine: engine,
+		}
+
+		log.Printf("Build started: %s", projectId)
+
+		stdout, err := BuildProject(context.Background(), config, projectId, options)
+		if err != nil {
+			http.Error(w, stdout, http.StatusUnprocessableEntity)
+			log.Printf("POST /project/%s/build: %s", projectId, err)
+			return
+		}
+
+		log.Printf("Build finished: %s", projectId)
+
+		if _, err := fmt.Fprintln(w, stdout); err != nil {
+			log.Printf("POST /project/%s/build: %s", projectId, err)
+		}
+	})
 	// Get list of project source files
 	router.Get("/project/{projectName}/src", func(w http.ResponseWriter, r *http.Request) {
 		projectId := chi.URLParam(r, "projectName")

@@ -14,7 +14,8 @@ import (
 const listenAddress = "localhost:3344"
 
 type Config struct {
-	ProjectDir string
+	ProjectDir string // Root of all projects
+	MaxProjectBuildTime time.Duration // Max time a project can build
 }
 
 func main() {
@@ -26,7 +27,11 @@ func main() {
 	case "server":
 		if len(os.Args) < 3 { usage() }
 		projectsDir := os.Args[2]
-		config := Config{ ProjectDir: projectsDir }
+		config := Config{
+			ProjectDir: projectsDir,
+			MaxProjectBuildTime: 30 * time.Second,
+		}
+		log.Printf("ProjectsDir: %s, Max Build Time: %s", config.ProjectDir, config.MaxProjectBuildTime)
 		mux := chi.NewMux()
 		SetupRoutes(config, mux)
 		log.Printf("Listening on http://%s", listenAddress)
@@ -48,12 +53,15 @@ func main() {
 		log.Println(cwd)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30 * time.Second)
-		out, err := RunBuild(ctx, BuildOptions{ TexDir: cwd, OutDir: cwd })
+		out, err := RunBuild(ctx, BuildOptions{ SrcDir: cwd, OutDir: cwd })
 		if err != nil {
 			panic(err)
 		}
 		cancel()
 		log.Print(out)
+	case "db":
+		db, err := NewDatabse("/tmp/ass.db")
+		fmt.Printf("db: %v, err: %v\n", db, err)
 	default:
 		usage()
 	}

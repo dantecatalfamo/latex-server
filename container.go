@@ -18,25 +18,6 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
-type Engine string
-
-const (
-	EnginePDF Engine = "-pdf"
-	EngineLua Engine = "-pdflua"
-	EngineXeTeX Engine = "-pdfxe"
-)
-
-type BuildOptions struct {
-	AuxDir string
-	OutDir string
-	TexDir string
-	SharedDir string
-	Document string
-	Engine Engine
-	Force bool
-	FileLineError bool
-}
-
 const TexLiveContainer = "texlive/texlive:latest"
 
 // PullImage pulls the latest version of `TexLiveContainer'.
@@ -65,23 +46,23 @@ func PullImage(ctx context.Context) error {
 	return nil
 }
 
-// RunBuild runs the LaTeX build.
+// RunBuildContainer runs the LaTeX build in a container.
 // It usese the files and directories specified in `options' on the
 // host system as the source and destination for its job.
-// It requires that options.WorkDir and options.TexDir are specified,
+// It requires that options.WorkDir and options.SrcDir are specified,
 // otherwise it will return an error. It also requires that there is
 // no directory "shared" in the project source root
 //
 // It returns the output of latexmk, or an error if the build fails.
-func RunBuild(ctx context.Context, options BuildOptions) (string, error) {
-	if options.TexDir == "" {
-		return "", errors.New("BuildOptions.TexDir empty")
+func RunBuildContainer(ctx context.Context, options BuildOptions) (string, error) {
+	if options.SrcDir == "" {
+		return "", errors.New("BuildOptions.SrcDir empty")
 	}
 	if options.OutDir == "" {
 		return "", errors.New("BuildOptions.OutDir empty")
 	}
 
-	sharedDir := path.Join(options.TexDir, "shared")
+	sharedDir := path.Join(options.SrcDir, "shared")
 
 	if _, err := os.Stat(sharedDir); err == nil {
 		return "", errors.New("TeXDir/shared already exists")
@@ -123,7 +104,7 @@ func RunBuild(ctx context.Context, options BuildOptions) (string, error) {
 	mounts := []mount.Mount{
 		{
 			Type: mount.TypeBind,
-			Source: options.TexDir,
+			Source: options.SrcDir,
 			Target: "/workdir",
 			ReadOnly: true,
 		},
@@ -233,6 +214,8 @@ func RunBuild(ctx context.Context, options BuildOptions) (string, error) {
 		// kill the container for us
 		return "", fmt.Errorf("RunBuild ContainerWait context ended: %w", ctx.Err())
 	}
+
+	// log.Println("stdout:", outBuffer.String())
 
 	return outBuffer.String(), nil
 }

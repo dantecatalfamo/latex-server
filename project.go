@@ -23,11 +23,12 @@ const ProjectIdByteLength = 24
 // We should be using a database like SQLite3 for this at some point,
 // but for now we're just playing around
 type ProjectInfo struct {
-	Name string         `json:"name"`
-	Owner string        `json:"owner"`
-	CreatedAt time.Time `json:"createdAt"`
-	LastBuild time.Time `json:"lastBuild"`
-	BuildStatus string  `josn:"buildStatus"`
+	Name string          `json:"name"`
+	Owner string         `json:"owner"`
+	CreatedAt time.Time  `json:"createdAt"`
+	LastBuild time.Time  `json:"lastBuild"`
+	BuildTime string     `json:"buildTime"`
+	BuildStatus string   `josn:"buildStatus"`
 }
 
 // ValidateProjectId checks if projectId is a valid ProjectID string
@@ -245,36 +246,70 @@ func ClearProjectDir(config Config, projectId string, subdir string) error {
 	return nil
 }
 
+// Options for BuildProject
 type ProjectBuildOptions struct {
-	Debug bool // Save aux directory
 	Force bool // Run latex in nonstop mode, and latexmk with force flag
 	FileLineError bool // Erorrs are in c-style file:line:error format
 	Engine Engine // LaTeX engine to use
 	Document string // The name of the main document
 }
 
+// BuildProject builds a project using latexmk using the options
+// provided. It retuens the stdout of latexmk.
 func BuildProject(ctx context.Context, config Config, projectId string, options ProjectBuildOptions) (string, error) {
 	projectPath := filepath.Join(config.ProjectDir, projectId)
 	srcPath := filepath.Join(projectPath, "src")
 	outPath := filepath.Join(projectPath, "out")
-	var auxPath string
-	if options.Debug {
-		auxPath = filepath.Join(projectPath, "aux")
+	auxPath := filepath.Join(projectPath, "aux")
+
+	projectInfo, err := ReadProjectInfo(config, projectId)
+	if err != nil {
+		return "", fmt.Errorf("BuildProject: %w", err)
 	}
 
-	buildOut, err := RunBuild(ctx, BuildOptions{
+	beginTime := time.Now()
+
+	projectInfo.LastBuild = beginTime.UTC()
+	projectInfo.BuildStatus = "running"
+	projectInfo.BuildTime = ""
+
+	if err := WriteProjectInfo(config, projectId, projectInfo); err != nil {
+		return "", fmt.Errorf("BuildProject before build: %w", err)
+	}
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, config.MaxProjectBuildTime)
+
+	buildOut, err := RunBuild(timeoutCtx, BuildOptions{
 		AuxDir: auxPath,
 		OutDir: outPath,
-		TexDir: srcPath,
+		SrcDir: srcPath,
 		// SharedDir: "", // TODO Make shared dir work
 		Document: options.Document,
 		Engine: options.Engine,
 		Force: options.Force,
 		FileLineError: options.FileLineError,
 	})
+	buildTime := time.Since(beginTime)
+	cancel() // Don't leak the context
 
+	projectInfo, err = ReadProjectInfo(config, projectId)
 	if err != nil {
 		return "", fmt.Errorf("BuildProject: %w", err)
+	}
+
+	projectInfo.BuildStatus = "finished"
+	projectInfo.BuildTime = buildTime.String()
+
+	if err != nil {
+		projectInfo.BuildStatus = "failed"
+		if err := WriteProjectInfo(config, projectId, projectInfo); err != nil {
+			return "", fmt.Errorf("BuildProject after failed build: %w", err)
+		}
+		return "", fmt.Errorf("BuildProject: %w", err)
+	}
+
+	if err := WriteProjectInfo(config, projectId, projectInfo); err != nil {
+		return "", fmt.Errorf("BuildProject after build: %w", err)
 	}
 
 	return buildOut, nil
