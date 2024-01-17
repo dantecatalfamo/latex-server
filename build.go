@@ -12,12 +12,10 @@ import (
 type Engine string
 
 
-// TODO Make these match the options sent in by clients and translated
-// internally
 const (
-	EnginePDF Engine = "-pdf"
-	EngineLua Engine = "-pdflua"
-	EngineXeTeX Engine = "-pdfxe"
+	EnginePDF Engine = "pdf"
+	EngineLua Engine = "lua"
+	EngineXeTeX Engine = "xe"
 )
 
 type BuildOptions struct {
@@ -32,14 +30,22 @@ type BuildOptions struct {
 }
 
 func RunBuild(ctx context.Context, options BuildOptions) (string, error) {
-	engine := EnginePDF
-	if (options.Engine != "") {
-		engine = options.Engine
+	var engineArg string
+	switch options.Engine {
+	case EnginePDF:
+		engineArg = "-pdf"
+	case EngineLua:
+		engineArg = "-pdflua"
+	case EngineXeTeX:
+		engineArg = "-pdfxe"
+	default:
+		engineArg = "-pdf"
 	}
+
 	auxDir := fmt.Sprintf("-auxdir=%s", options.AuxDir)
 	outDir := fmt.Sprintf("-outdir=%s", options.OutDir)
 
-	args := []string{string(engine), auxDir, outDir, "-deps", "-norc"};
+	args := []string{engineArg, auxDir, outDir, "-deps", "-norc"};
 
 	if options.Document != "" {
 		args = append(args, options.Document)
