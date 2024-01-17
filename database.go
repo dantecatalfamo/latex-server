@@ -26,7 +26,7 @@ func NewDatabse(path string) (*Database, error) {
 }
 
 func (db *Database) Migrate() error {
-	row := db.db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'schema_info'")
+	row := db.db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'schema_migration'")
 	if row.Err() != nil {
 		return fmt.Errorf("Migrate query row sqlite_master: %w", row.Err())
 	}
@@ -41,13 +41,13 @@ func (db *Database) Migrate() error {
 
 	// Tables don't exist, start migrating from 0
 	if tablesExist > 0 {
-		row = db.db.QueryRow("SELECT version FROM schema_info")
+		row = db.db.QueryRow("SELECT version FROM schema_migration")
 		if row.Err() != nil {
-			return fmt.Errorf("Migrate query row schema_info: %w", row.Err())
+			return fmt.Errorf("Migrate query row schema_migration: %w", row.Err())
 		}
 
 		if err := row.Scan(&lowestMigration); err != nil {
-			return fmt.Errorf("Migrate scan schema_info: %w", err)
+			return fmt.Errorf("Migrate scan schema_migration: %w", err)
 		}
 	}
 
@@ -61,7 +61,7 @@ func (db *Database) Migrate() error {
 			return fmt.Errorf("Migrate applying migration: %w", err)
 		}
 
-		if _, err := db.db.Exec("UPDATE schema_info SET version = ?", index + 1); err != nil {
+		if _, err := db.db.Exec("UPDATE schema_migration SET version = ?", index + 1); err != nil {
 			return fmt.Errorf("Migrate: applying migration: %w", err)
 		}
 	}

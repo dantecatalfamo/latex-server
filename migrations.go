@@ -44,10 +44,10 @@ CREATE TABLE IF NOT EXISTS files (
 
 CREATE INDEX IF NOT EXISTS files_projects_dir_hash_index ON files(project_id, project_dir, file_hash);
 
-CREATE TABLE IF NOT EXISTS schema_info (
+CREATE TABLE IF NOT EXISTS schema_migration (
   version INTEGER
 );
 
-INSERT INTO schema_info (version) VALUES (1);
+INSERT INTO schema_migration (version) VALUES (1);
 `,
 }
