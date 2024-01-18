@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -81,12 +82,59 @@ type ProjectInfo struct {
 type BuildInfo struct {
 	BuildStart string `json:"buildStart"`
 	BuildTime float64 `json:"buildTime"`
-	Status string `json:"status"`
+	Status string     `json:"status"`
 	Options ProjectBuildOptions `json:"options"`
 }
 
-func (db *Database) GetProjectInfo (ProjectInfo, error) {
+func (db *Database) GetProjectInfo(user string, project string) (ProjectInfo, error) {
+	projectId, err := db.GetProjectId(user, project)
+	if err != nil {
+		return ProjectInfo{}, fmt.Errorf("GetProjectInfo: %w", err)
+	}
 
+	query := `
+SELECT
+  p.name,
+  p.public,
+  p.created_at,
+  b.build_start,
+  b.build_time,
+  b.status,
+  b.options
+FROM
+  projects p
+INNER JOIN
+  builds b
+ON
+  p.id = b.project_id
+WHERE
+  p.id = ?
+LIMIT 1
+`
+	row := db.conn.QueryRow(query, projectId)
+	if row.Err() != nil {
+		return ProjectInfo{}, fmt.Errorf("GetProjectInfo row query: %w", err)
+	}
+
+	var projectInfo ProjectInfo
+	var unparsedOptions string
+	if err := row.Scan(
+		&projectInfo.Name,
+		&projectInfo.Public,
+		&projectInfo.CreatedAt,
+		&projectInfo.LatestBuild.BuildStart,
+		&projectInfo.LatestBuild.BuildTime,
+		&projectInfo.LatestBuild.Status,
+		&unparsedOptions,
+	); err != nil {
+		return ProjectInfo{}, fmt.Errorf("GetProjectInfo scan: %w", err)
+	}
+
+	if err := json.Unmarshal([]byte(unparsedOptions), &projectInfo.LatestBuild.Options); err != nil {
+		return ProjectInfo{}, fmt.Errorf("GetProjectInfo unmarshal last build options: %w", err)
+	}
+
+	return projectInfo, nil
 }
 
 func (db *Database) GetProjectId(user string, project string) (int, error) {

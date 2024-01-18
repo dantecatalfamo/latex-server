@@ -14,6 +14,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 	// TODO Add route to list builds/get specific/latest build info
 	// Maybe /user/project/builds (list)
 	//       /user/project/builds/(id|latest) (build info)
+	// TODO Authenticate routes
 	// List projects
 	// router.Get("/projects", func(w http.ResponseWriter, r *http.Request) {})
 	// Create new project with randomly generated ID
@@ -35,24 +36,18 @@ func SetupRoutes(config Config, router *chi.Mux) {
 		user := chi.URLParam(r, "user")
 		project := chi.URLParam(r, "project")
 
-		if !ValidateProjectId(config, projectId) {
-			http.Error(w, "Invalid project ID", http.StatusBadRequest)
-			log.Printf("Invalid project id: %s", projectId)
-			return
-		}
-
-		info, err := ReadProjectInfo(config, projectId)
+		projectInfo, err := config.Database.GetProjectInfo(user, project)
 		if err != nil {
-			http.Error(w, "Failed to read project info", http.StatusBadRequest)
-			log.Printf("GET /project/%s: %s", projectId, err)
+			http.Error(w, "Failed to retrieve project information", http.StatusInternalServerError)
+			log.Printf("GET /%s/%s: %s", user, project, err)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		err = json.NewEncoder(w).Encode(info)
+		err = json.NewEncoder(w).Encode(projectInfo)
 		if err != nil {
 			http.Error(w, "Failed to serialize json", http.StatusInternalServerError)
-			log.Printf("GET /project/%s: %s", projectId, err)
+			log.Printf("GET /%s/%s: %s", user, project, err)
 			return
 		}
 	})
