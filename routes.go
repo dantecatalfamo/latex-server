@@ -112,7 +112,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 			Engine: engine,
 		}
 
-		log.Printf("Build started: %s/%s", user, project)
+		log.Printf("Build started: %s/%s %+v", user, project, options)
 
 		stdout, err := BuildProject(context.Background(), config, user, project, options)
 		if err != nil {

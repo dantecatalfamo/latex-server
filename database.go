@@ -98,6 +98,9 @@ func (db *Database) ListUserProjects(user string) ([]ProjectInfo, error) {
 		return nil, fmt.Errorf("ListUserProjects: %w", err)
 	}
 
+	// We select the latest build using max(b.id), even through we
+	// don't actually scan that column
+	// https://www.sqlite.org/lang_select.html#bareagg
 	query := `
 SELECT
   p.name,
@@ -106,7 +109,8 @@ SELECT
   COALESCE(b.build_start, datetime(0, 'unixepoch')),
   COALESCE(b.build_time, 0),
   COALESCE(b.status, ''),
-  COALESCE(b.options, '{}')
+  COALESCE(b.options, '{}'),
+  max(b.id)
 FROM
   projects p
 LEFT JOIN
@@ -115,6 +119,10 @@ ON
   p.id = b.project_id
 WHERE
   p.user_id = ?
+GROUP BY
+  p.id
+ORDER BY
+  p.id DESC
 `
 	rows, err := db.conn.Query(query, userId)
 	if err != nil {
@@ -184,6 +192,8 @@ ON
   p.id = b.project_id
 WHERE
   p.id = ?
+ORDER BY
+  b.id DESC
 LIMIT 1
 `
 	row := db.conn.QueryRow(query, projectId)

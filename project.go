@@ -235,8 +235,9 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 	cancel() // Don't leak the context
 
 	if err != nil {
+		log.Println("FUCK!!!")
 		if _, err := config.Database.conn.Exec(
-			"UPDATE builds SET status = 'finished', build_time = ? WHERE id = ?",
+			"UPDATE builds SET status = 'failed', build_time = ? WHERE id = ?",
 			buildTime.Seconds(),
 			buildId,
 		); err != nil {
