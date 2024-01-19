@@ -18,6 +18,7 @@ type Config struct {
 	ProjectDir string // Root of all projects
 	MaxProjectBuildTime time.Duration // Max time a project can build
 	Database *Database // Database object
+	MaxFileSize uint // Maximum upload size
 }
 
 func main() {
@@ -35,6 +36,7 @@ func main() {
 		ProjectDir: *projectsDir,
 		MaxProjectBuildTime: 30 * time.Second,
 		Database: db,
+		MaxFileSize: 25 * 1024 * 1024,
 	}
 	log.Printf("ProjectsDir: %s, Max Build Time: %s, Database: %v", config.ProjectDir, config.MaxProjectBuildTime, config.Database)
 

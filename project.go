@@ -393,3 +393,50 @@ func DeleteProjectFile(config Config, user, projectName, subdir, path string) er
 
 	return nil
 }
+
+func CreateProjectFile(config Config, user, projectName, path string, reader io.Reader) error {
+	projectPath := filepath.Join(config.ProjectDir, user, projectName)
+	filePath := filepath.Join(projectPath, "src", path)
+	fileDir := filepath.Dir(filePath)
+
+	projectId, err := config.Database.GetProjectId(user, projectName)
+	if err != nil {
+		return fmt.Errorf("CreateProjectFile get project id: %w", err)
+	}
+
+	if strings.Contains(path, "../") || strings.Contains(path, "./") {
+		return errors.New("path contains parent directory traversal")
+	}
+
+	if err := os.MkdirAll(fileDir, 0700); err != nil {
+		return fmt.Errorf("CreateProjectFile MkdirAll: %w", err)
+	}
+
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("CreateProjectFile create file: %w", err)
+	}
+
+	hasher := sha256.New()
+	multiWriter := io.MultiWriter(file, hasher)
+
+	size, err := io.Copy(multiWriter, reader)
+	if err != nil {
+		return fmt.Errorf("CreateProjectFile copy: %w", err)
+	}
+
+	digest := fmt.Sprintf("%x", hasher.Sum(nil))
+
+	if _, err := config.Database.conn.Exec(
+		"INSERT INTO files (project_id, subdir, path, size, sha256sum) VALUES (?, ?, ?, ?, ?)",
+		projectId,
+		"src",
+		path,
+		size,
+		digest,
+	); err != nil {
+		return fmt.Errorf("CreateProjectFile db insert: %w", err)
+	}
+
+	return nil
+}

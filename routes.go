@@ -157,7 +157,37 @@ func SetupRoutes(config Config, router *chi.Mux) {
 		}
 	})
 	// Create or update project source file
-	router.Post("/{user}/{project}/src", func(w http.ResponseWriter, r *http.Request) {})
+	router.Post("/{user}/{project}/src", func(w http.ResponseWriter, r *http.Request) {
+		user := chi.URLParam(r, "user")
+		project := chi.URLParam(r, "project")
+
+		if err := r.ParseMultipartForm(int64(config.MaxFileSize)); err != nil {
+			http.Error(w, "Unable to parse form", http.StatusBadRequest)
+			log.Printf("%s %s: %s", r.Method, r.URL.Path, err)
+			return
+		}
+
+		file, fileHeader, err := r.FormFile("file")
+		if err != nil {
+			http.Error(w, "Unable to read form file", http.StatusBadRequest)
+			log.Printf("%s %s: %s", r.Method, r.URL.Path, err)
+			return
+		}
+		_ = fileHeader
+
+		path := r.FormValue("path")
+		if path == "" {
+			http.Error(w, "Unable to read path", http.StatusBadRequest)
+			log.Printf("%s %s: %s", r.Method, r.URL.Path, "no file path")
+			return
+		}
+
+		if err := CreateProjectFile(config, user, project, path, file); err != nil {
+			http.Error(w, "Unable to create file", http.StatusInternalServerError)
+			log.Printf("%s %s: %s", r.Method, r.URL.Path, err)
+			return
+		}
+	})
 	// Retrieve a project source file with the specified hash
 	router.Get("/{user}/{project}/src/*", func(w http.ResponseWriter, r *http.Request) {
 		user := chi.URLParam(r, "user")
