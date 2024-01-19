@@ -181,6 +181,7 @@ type ProjectBuildOptions struct {
 	FileLineError bool `json:"fileLineError"` // Erorrs are in c-style file:line:error format
 	Engine Engine `json:"engine"` // LaTeX engine to use
 	Document string `json:"document"` // The name of the main document
+	Dependents bool `json:"dependents"` // List dependent files in build output
 }
 
 // BuildProject builds a project using latexmk using the options
@@ -230,9 +231,12 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 		Engine: options.Engine,
 		Force: options.Force,
 		FileLineError: options.FileLineError,
+		Dependents: options.Dependents,
 	})
 	buildTime := time.Since(beginTime)
 	cancel() // Don't leak the context
+
+	buildOut = strings.ReplaceAll(buildOut, projectPath, "<project>")
 
 	if err != nil {
 		if _, err := config.Database.conn.Exec(

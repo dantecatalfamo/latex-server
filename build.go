@@ -27,6 +27,7 @@ type BuildOptions struct {
 	Engine Engine
 	Force bool
 	FileLineError bool
+	Dependents bool
 }
 
 func RunBuild(ctx context.Context, options BuildOptions) (string, error) {
@@ -45,7 +46,7 @@ func RunBuild(ctx context.Context, options BuildOptions) (string, error) {
 	auxDir := fmt.Sprintf("-auxdir=%s", options.AuxDir)
 	outDir := fmt.Sprintf("-outdir=%s", options.OutDir)
 
-	args := []string{engineArg, auxDir, outDir, "-deps", "-norc"};
+	args := []string{engineArg, auxDir, outDir, "-norc"};
 
 	if options.Document != "" {
 		args = append(args, options.Document)
@@ -59,6 +60,10 @@ func RunBuild(ctx context.Context, options BuildOptions) (string, error) {
 
 	if options.FileLineError {
 		args = append(args, "-file-line-error")
+	}
+
+	if options.Dependents {
+		args = append(args, "-deps")
 	}
 
 	err := os.Chdir(options.SrcDir)

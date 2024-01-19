@@ -110,6 +110,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 			FileLineError: r.Form.Has("fileLineError"),
 			Document: r.Form.Get("document"),
 			Engine: engine,
+			Dependents: r.Form.Has("dependents"),
 		}
 
 		log.Printf("Build started: %s/%s %+v", user, project, options)
