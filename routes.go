@@ -176,12 +176,18 @@ func SetupRoutes(config Config, router *chi.Mux) {
 			log.Printf("%s %s copy: %s", r.Method, r.URL.Path, err)
 		}
 	})
-	// Delete a project souce file with the specified hash
-	// TODO maybe this should be a POST endpoint that accepts a list
-	// of files so we don't have to keep re-creating the hash index if
-	// we want to delete multiple files... or maybe just remove them
-	// from the cache list and re-save it.
-	router.Delete("/{user}/{project}/src/*", func(w http.ResponseWriter, r *http.Request) {})
+	// Delete a project souce file
+	router.Delete("/{user}/{project}/src/*", func(w http.ResponseWriter, r *http.Request) {
+		user := chi.URLParam(r, "user")
+		project := chi.URLParam(r, "project")
+		path := chi.URLParam(r, "*")
+
+		if err := DeleteProjectFile(config, user, project, "src", path); err != nil {
+			http.Error(w, "Failed to delete file", http.StatusBadRequest)
+			log.Printf("%s %s: %s", r.Method, r.URL.Path, err)
+			return
+		}
+	})
 	// Get a list of project aux files (if created)
 	router.Get("/{user}/{project}/aux", func(w http.ResponseWriter, r *http.Request) {
 		user := chi.URLParam(r, "user")

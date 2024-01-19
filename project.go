@@ -343,3 +343,53 @@ func ReadProjectFile(config Config, user, projectName, subdir, path string) (io.
 
 	return file, nil
 }
+
+func DeleteProjectFile(config Config, user, projectName, subdir, path string) error {
+	projectPath := filepath.Join(config.ProjectDir, user, projectName)
+	filePath := filepath.Join(projectPath, subdir, path)
+
+	projectId, err := config.Database.GetProjectId(user, projectName)
+	if err != nil {
+		return fmt.Errorf("DeleteProjectFile get project id: %w", err)
+	}
+
+	if path == "" || path == "." || path == "./" || path == ".." {
+		return errors.New("path is just the top level directory")
+	}
+
+	if strings.Contains(path, "../") {
+		return errors.New("path contains parent directory traversal")
+	}
+
+	stat, err := os.Stat(filePath)
+	if err != nil {
+		return fmt.Errorf("DeleteProjectFile stat: %w", err)
+	}
+
+	if stat.IsDir() {
+		if err := os.RemoveAll(filePath); err != nil {
+			return fmt.Errorf("DeleteProjectFile RemoveAll: %w", err)
+		}
+		if _, err := config.Database.conn.Exec("DELETE FROM files WHERE project_id = ? ANd subdir = ? AND path GLOB ?",
+			projectId,
+			subdir,
+			fmt.Sprintf("%s/*", path),
+		); err != nil {
+			return fmt.Errorf("DeleteProjectFile remove dir from db: %w", err)
+		}
+	} else {
+		if err := os.Remove(filePath); err != nil {
+			return fmt.Errorf("DeleteProjectFile Remove: %w", err)
+		}
+		if _, err := config.Database.conn.Exec(
+			"DELETE FROM files WHERE project_id = ? AND subdir = ? AND path = ?",
+			projectId,
+			subdir,
+			path,
+		); err != nil {
+			return fmt.Errorf("DeleteProjectFile remove file from db: %w", err)
+		}
+	}
+
+	return nil
+}
