@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -287,6 +288,10 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 		return buildOut, fmt.Errorf("BuildProject scan out: %w", err)
 	}
 
+	if err := ScanProjectFiles(config, user, projectName, "src"); err != nil {
+		return buildOut, fmt.Errorf("BuildProject scan src: %w", err)
+	}
+
 	// Finally return the build error if we have one
 	if buildErr != nil {
 		return buildOut, fmt.Errorf("BuildProject failed build (exit code): %w", buildErr)
@@ -312,4 +317,29 @@ func DeleteProject(config Config, user string, projectName string) error {
 	}
 
 	return nil
+}
+
+func ReadProjectFile(config Config, user, projectName, subdir, path string) (io.ReadCloser, error) {
+	if strings.Contains(path, "../") {
+		return nil, errors.New("path contains parent directory traversal")
+	}
+
+	projectPath := filepath.Join(config.ProjectDir, user, projectName)
+	filePath := filepath.Join(projectPath, subdir, path)
+
+	stat, err := os.Stat(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("ReadProjectFile stat: %w", err)
+	}
+
+	if !stat.Mode().IsRegular() {
+		return nil, fmt.Errorf("file \"%s\" is not a normal file: %s", filePath, stat.Mode().String())
+	}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("ReadProjectFile open file: %w", err)
+	}
+
+	return file, nil
 }

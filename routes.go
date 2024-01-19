@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os/exec"
@@ -158,7 +159,23 @@ func SetupRoutes(config Config, router *chi.Mux) {
 	// Create or update project source file
 	router.Post("/{user}/{project}/src", func(w http.ResponseWriter, r *http.Request) {})
 	// Retrieve a project source file with the specified hash
-	router.Get("/{user}/{project}/src/*", func(w http.ResponseWriter, r *http.Request) {})
+	router.Get("/{user}/{project}/src/*", func(w http.ResponseWriter, r *http.Request) {
+		user := chi.URLParam(r, "user")
+		project := chi.URLParam(r, "project")
+		path := chi.URLParam(r, "*")
+
+		file, err := ReadProjectFile(config, user, project, "src", path)
+		if err != nil {
+			http.Error(w, "Invalid file path", http.StatusBadRequest)
+			log.Printf("%s %s: %s", r.Method, r.URL.Path, err)
+			return
+		}
+		defer file.Close()
+
+		if _, err := io.Copy(w, file); err != nil {
+			log.Printf("%s %s copy: %s", r.Method, r.URL.Path, err)
+		}
+	})
 	// Delete a project souce file with the specified hash
 	// TODO maybe this should be a POST endpoint that accepts a list
 	// of files so we don't have to keep re-creating the hash index if
@@ -185,7 +202,23 @@ func SetupRoutes(config Config, router *chi.Mux) {
 		}
 	})
 	// Retrieve a project aux file with the specified hash
-	router.Get("/{user}/{project}/aux/*", func(w http.ResponseWriter, r *http.Request) {})
+	router.Get("/{user}/{project}/aux/*", func(w http.ResponseWriter, r *http.Request) {
+		user := chi.URLParam(r, "user")
+		project := chi.URLParam(r, "project")
+		path := chi.URLParam(r, "*")
+
+		file, err := ReadProjectFile(config, user, project, "aux", path)
+		if err != nil {
+			http.Error(w, "Invalid file path", http.StatusBadRequest)
+			log.Printf("%s %s: %s", r.Method, r.URL.Path, err)
+			return
+		}
+		defer file.Close()
+
+		if _, err := io.Copy(w, file); err != nil {
+			log.Printf("%s %s copy: %s", r.Method, r.URL.Path, err)
+		}
+	})
 	// Get a list of project out files (if created)
 	router.Get("/{user}/{project}/out", func(w http.ResponseWriter, r *http.Request) {
 		user := chi.URLParam(r, "user")
@@ -206,5 +239,21 @@ func SetupRoutes(config Config, router *chi.Mux) {
 		}
 	})
 	// Retrieve a project out file with the specified hash
-	router.Get("/{user}/{project}/aux/*", func(w http.ResponseWriter, r *http.Request) {})
+	router.Get("/{user}/{project}/out/*", func(w http.ResponseWriter, r *http.Request) {
+		user := chi.URLParam(r, "user")
+		project := chi.URLParam(r, "project")
+		path := chi.URLParam(r, "*")
+
+		file, err := ReadProjectFile(config, user, project, "out", path)
+		if err != nil {
+			http.Error(w, "Invalid file path", http.StatusBadRequest)
+			log.Printf("%s %s: %s", r.Method, r.URL.Path, err)
+			return
+		}
+		defer file.Close()
+
+		if _, err := io.Copy(w, file); err != nil {
+			log.Printf("%s %s copy: %s", r.Method, r.URL.Path, err)
+		}
+	})
 }
