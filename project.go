@@ -56,9 +56,9 @@ func ListProjectFiles(config Config, user string, projectName string, subdir str
 		return nil, fmt.Errorf("ListProjectFiles: %w", err)
 	}
 
-	rows, err := config.Database.conn.Query("SELECT path, size, sha512hash FROM files WHERE project_id = ?", projectId)
+	rows, err := config.Database.conn.Query("SELECT path, size, sha512sum FROM files WHERE project_id = ? AND subdir = ?", projectId, subdir)
 	if err != nil {
-		return nil, fmt.Errorf("ListProjectFiles: %w", err)
+		return nil, fmt.Errorf("ListProjectFiles query: %w", err)
 	}
 
 	defer rows.Close()
@@ -85,6 +85,8 @@ func ListProjectFiles(config Config, user string, projectName string, subdir str
 func ScanProjectFiles(config Config, user string, projectName string, subdir string) error {
 	projectPath := filepath.Join(config.ProjectDir, user, projectName)
 	filesPath := filepath.Join(projectPath, subdir)
+
+	log.Printf("Scanning %s/%s/%s", user, projectName, subdir)
 
 	projectId, err := config.Database.GetProjectId(user, projectName)
 	if err != nil {
@@ -117,7 +119,9 @@ func ScanProjectFiles(config Config, user string, projectName string, subdir str
 		partialPath := strings.TrimPrefix(path, filesPath)
 
 		if _, err := tx.Exec(
-			"INSERT INTO files (path, size, sha512sum) VALUES (?, ?, ?)",
+			"INSERT INTO files (project_id, subdir, path, size, sha512sum) VALUES (?, ?, ?, ?, ?)",
+			projectId,
+			subdir,
 			partialPath,
 			size,
 			digest,
@@ -226,7 +230,7 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 
 	// If error is type *ExitError, the cmdOut should be populated
 	// with an error message
-	buildOut, err := RunBuild(timeoutCtx, BuildOptions{
+	buildOut, buildErr := RunBuild(timeoutCtx, BuildOptions{
 		AuxDir: auxPath,
 		OutDir: outPath,
 		SrcDir: srcPath,
@@ -242,32 +246,36 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 
 	buildOut = strings.ReplaceAll(buildOut, projectPath, "<project>")
 
-	if err != nil {
-		reason := "(internal)"
+	// If there is an issue with the build, but it's only with the
+	// child process (bad input, etc.) we return with the exit code at
+	// the bottom, so we have a chance to re-scan the aux and out
+	// directories and update the files
+	if buildErr != nil {
 		var execErr *exec.ExitError
-		if errors.As(err, &execErr) {
-			reason = fmt.Sprintf("(%d)", execErr.ExitCode())
+		if errors.As(buildErr, &execErr) {
+			// It's a latexmk error, we can continue
+			if _, err := config.Database.conn.Exec(
+				"UPDATE builds SET status = ?, build_time = ?, build_out = ? WHERE id = ?",
+				fmt.Sprintf("failed (%d)", execErr.ExitCode()),
+				buildTime.Seconds(),
+				buildOut,
+				buildId,
+			); err != nil {
+				return buildOut, fmt.Errorf("BuildProject updating db failed build: %w", err)
+			}
+		} else {
+			// Non-latexmk error, that's us so we bail
+			return "", fmt.Errorf("BuildProject non-exit-code exec error: %w", buildErr)
 		}
+	} else {
 		if _, err := config.Database.conn.Exec(
-			"UPDATE builds SET status = ?, build_time = ?, build_out = ? WHERE id = ?",
-			fmt.Sprintf("failed %s", reason),
+			"UPDATE builds SET status = 'finished', build_time = ?, build_out = ? WHERE id = ?",
 			buildTime.Seconds(),
 			buildOut,
 			buildId,
 		); err != nil {
-			return buildOut, fmt.Errorf("BuildProject updating db failed build: %w", err)
+			return buildOut, fmt.Errorf("BuildProject updating db finished build: %w", err)
 		}
-
-		return buildOut, fmt.Errorf("BuildProject failed build: %w", err)
-	}
-
-	if _, err := config.Database.conn.Exec(
-		"UPDATE builds SET status = 'finished', build_time = ?, build_out = ? WHERE id = ?",
-		buildTime.Seconds(),
-		buildOut,
-		buildId,
-	); err != nil {
-		return buildOut, fmt.Errorf("BuildProject updating db finished build: %w", err)
 	}
 
 	if err := ScanProjectFiles(config, user, projectName, "aux"); err != nil {
@@ -276,6 +284,11 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 
 	if err := ScanProjectFiles(config, user, projectName, "out"); err != nil {
 		return buildOut, fmt.Errorf("BuildProject scan out: %w", err)
+	}
+
+	// Finally return the build error if we have one
+	if buildErr != nil {
+		return buildOut, fmt.Errorf("BuildProject failed build (exit code): %w", buildErr)
 	}
 
 	return buildOut, nil
