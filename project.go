@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"crypto/sha512"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -45,7 +45,7 @@ func NewProject(config Config, user string, name string) error {
 type FileInfo struct {
 	Path string        `json:"path"`
 	Size uint64        `json:"size"`
-	Sha512Hash string  `json:"sha512hash"`
+	Sha256Sum string  `json:"sha256sum"`
 }
 
 // ListProjectFiles returns a list of files in the subdir of a project
@@ -56,7 +56,7 @@ func ListProjectFiles(config Config, user string, projectName string, subdir str
 		return nil, fmt.Errorf("ListProjectFiles: %w", err)
 	}
 
-	rows, err := config.Database.conn.Query("SELECT path, size, sha512sum FROM files WHERE project_id = ? AND subdir = ?", projectId, subdir)
+	rows, err := config.Database.conn.Query("SELECT path, size, sha256sum FROM files WHERE project_id = ? AND subdir = ?", projectId, subdir)
 	if err != nil {
 		return nil, fmt.Errorf("ListProjectFiles query: %w", err)
 	}
@@ -67,7 +67,7 @@ func ListProjectFiles(config Config, user string, projectName string, subdir str
 
 	for rows.Next() {
 		info := FileInfo{}
-		if err := rows.Scan(&info.Path, &info.Size, &info.Sha512Hash); err != nil {
+		if err := rows.Scan(&info.Path, &info.Size, &info.Sha256Sum); err != nil {
 			return nil, fmt.Errorf("ListProjectFiles row scan: %w", err)
 		}
 		fileInfo = append(fileInfo, info)
@@ -85,6 +85,7 @@ func ListProjectFiles(config Config, user string, projectName string, subdir str
 func ScanProjectFiles(config Config, user string, projectName string, subdir string) error {
 	projectPath := filepath.Join(config.ProjectDir, user, projectName)
 	filesPath := filepath.Join(projectPath, subdir)
+	removePrefix := filesPath + "/"
 
 	log.Printf("Scanning %s/%s/%s", user, projectName, subdir)
 
@@ -114,12 +115,12 @@ func ScanProjectFiles(config Config, user string, projectName string, subdir str
 
 		size := info.Size()
 		fileData, err := os.ReadFile(path)
-		hash := sha512.Sum512(fileData)
+		hash := sha256.Sum256(fileData)
 		digest := fmt.Sprintf("%x", hash)
-		partialPath := strings.TrimPrefix(path, filesPath)
+		partialPath := strings.TrimPrefix(path, removePrefix)
 
 		if _, err := tx.Exec(
-			"INSERT INTO files (project_id, subdir, path, size, sha512sum) VALUES (?, ?, ?, ?, ?)",
+			"INSERT INTO files (project_id, subdir, path, size, sha256sum) VALUES (?, ?, ?, ?, ?)",
 			projectId,
 			subdir,
 			partialPath,

@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS files (
   project_id INTEGER NOT NULL,
   subdir TEXT,
   path TEXT,
-  sha512sum TEXT,
+  sha256sum TEXT,
   size INTEGER,
 
   FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
