@@ -16,8 +16,24 @@ func SetupRoutes(config Config, router *chi.Mux) {
 	//       /user/project/builds/(id|latest) (build info)
 	// TODO Authenticate routes
 	// List projects
-	// router.Get("/projects", func(w http.ResponseWriter, r *http.Request) {})
-	// Create new project with randomly generated ID
+	router.Get("/{user}", func(w http.ResponseWriter, r *http.Request) {
+		user := chi.URLParam(r, "user")
+		infos, err := config.Database.ListUserProjects(user)
+		if err != nil {
+			http.Error(w, "No user", http.StatusBadRequest)
+			log.Printf("GET %s: %s", r.URL.Path, err)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(infos)
+		if err != nil {
+			http.Error(w, "Failed to serialize json", http.StatusInternalServerError)
+			log.Printf("GET %s: %s", r.URL.Path, err)
+			return
+		}
+	})
+	// Create a new project
 	router.Post("/{user}", func(w http.ResponseWriter, r *http.Request) {
 		// TODO get new project name from POST form
 		project := "test"
@@ -52,44 +68,26 @@ func SetupRoutes(config Config, router *chi.Mux) {
 		}
 	})
 	// Delete a project
-	router.Delete("/project/{projectName}", func(w http.ResponseWriter, r *http.Request) {
-		projectId := chi.URLParam(r, "projectName")
-		if !ValidateProjectId(config, projectId) {
-			http.Error(w, "Invalid project ID", http.StatusBadRequest)
-			log.Printf("Invalid project id: %s", projectId)
+	router.Delete("/{user}/{project}", func(w http.ResponseWriter, r *http.Request) {
+		user := chi.URLParam(r, "user")
+		project := chi.URLParam(r, "project")
+
+		if err := DeleteProject(config, user, project); err != nil {
+			http.Error(w, "Unable to delete project", http.StatusInternalServerError)
+			log.Printf("DELETE %s: %s", r.URL.Path, err)
 			return
 		}
 
-		log.Printf("Delete project: %s", projectId)
-		err := DeleteProject(config, projectId)
-		if err != nil {
-			http.Error(w, "Invalid project ID", http.StatusBadRequest)
-			log.Printf("DELETE /project/%s: %s", projectId, err)
-		}
+		log.Printf("Deleted project: %s/%s", user, project)
 	})
 	// Run project build
-	router.Post("/project/{projectName}/build", func(w http.ResponseWriter, r *http.Request) {
-		projectId := chi.URLParam(r, "projectName")
-		if !ValidateProjectId(config, projectId) {
-			http.Error(w, "Invalid project ID", http.StatusBadRequest)
-			log.Printf("Invalid project id: %s", projectId)
-			return
-		}
-
-		if err := ClearProjectDir(config, projectId, "aux"); err != nil {
-			http.Error(w, "Failed to build", http.StatusInternalServerError)
-			log.Printf("POST /project/%s/build: %s", projectId, err)
-			return
-		}
-		if err := ClearProjectDir(config, projectId, "out"); err != nil {
-			http.Error(w, "Failed to build", http.StatusInternalServerError)
-			log.Printf("POST /project/%s/build: %s", projectId, err)
-			return
-		}
+	router.Post("/{user}/{project}/build", func(w http.ResponseWriter, r *http.Request) {
+		user := chi.URLParam(r, "user")
+		project := chi.URLParam(r, "project")
 
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "Unable to process request", http.StatusBadRequest)
-			log.Printf("POST /project/%s/build: %s", projectId, err)
+			log.Printf("POST %s: %s", r.URL.Path, err)
 			return
 		}
 
@@ -110,34 +108,30 @@ func SetupRoutes(config Config, router *chi.Mux) {
 			Engine: engine,
 		}
 
-		log.Printf("Build started: %s", projectId)
+		log.Printf("Build started: %s/%s", user, project)
 
-		stdout, err := BuildProject(context.Background(), config, projectId, options)
+		stdout, err := BuildProject(context.Background(), config, user, project, options)
 		if err != nil {
 			http.Error(w, stdout, http.StatusUnprocessableEntity)
-			log.Printf("POST /project/%s/build: %s", projectId, err)
+			log.Printf("POST %s: %s", r.URL.Path, err)
 			return
 		}
 
-		log.Printf("Build finished: %s", projectId)
+		log.Printf("Build finished: %s/%s", user, project)
 
 		if _, err := fmt.Fprintln(w, stdout); err != nil {
-			log.Printf("POST /project/%s/build: %s", projectId, err)
+			log.Printf("POST %s: %s", r.URL.Path, err)
 		}
 	})
 	// Get list of project source files
-	router.Get("/project/{projectName}/src", func(w http.ResponseWriter, r *http.Request) {
-		projectId := chi.URLParam(r, "projectName")
-		if !ValidateProjectId(config, projectId) {
-			http.Error(w, "Invalid project ID", http.StatusBadRequest)
-			log.Printf("Invalid project id: %s", projectId)
-			return
-		}
+	router.Get("/{user}/{project}/src", func(w http.ResponseWriter, r *http.Request) {
+		user := chi.URLParam(r, "user")
+		project := chi.URLParam(r, "project")
 
-		files, err := ListProjectFiles(config, projectId, "src")
+		files, err := ListProjectFiles(config, user, project, "src")
 		if err != nil {
 			http.Error(w, "Failed to list project files", http.StatusInternalServerError)
-			log.Printf("GET /project/%s/src: %s", projectId, err)
+			log.Printf("GET %s: %s", r.URL.Path, err)
 			return
 		}
 
@@ -145,7 +139,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 		err = json.NewEncoder(w).Encode(files)
 		if err != nil {
 			http.Error(w, "Failed to serialize json", http.StatusInternalServerError)
-			log.Printf("GET /project/%s/src: %s", projectId, err)
+			log.Printf("GET %s: %s", r.URL.Path, err)
 		}
 	})
 	// Create or update project source file

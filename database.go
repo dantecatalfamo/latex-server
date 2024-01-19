@@ -5,8 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+)
+
+const (
+	SQLiteTime = "2006-01-02 15:04:05"
+	SQLiteTimeNano = "2006-01-02 15:04:05.999999"
 )
 
 type Database struct {
@@ -75,15 +81,84 @@ func (db *Database) Migrate() error {
 type ProjectInfo struct {
 	Name string `json:"name"`
 	Public bool `json:"public"`
-	CreatedAt string `json:"createdAt"`
+	CreatedAt time.Time `json:"createdAt"`
 	LatestBuild BuildInfo `json:"latestBuild"`
 }
 
 type BuildInfo struct {
-	BuildStart string `json:"buildStart"`
+	BuildStart time.Time `json:"buildStart"`
 	BuildTime float64 `json:"buildTime"`
 	Status string     `json:"status"`
 	Options ProjectBuildOptions `json:"options"`
+}
+
+func (db *Database) ListUserProjects(user string) ([]ProjectInfo, error) {
+	userId, err := db.GetUserId(user)
+	if err != nil {
+		return nil, fmt.Errorf("ListUserProjects: %w", err)
+	}
+
+	query := `
+SELECT
+  p.name,
+  p.public,
+  p.created_at,
+  COALESCE(b.build_start, datetime(0, 'unixepoch')),
+  COALESCE(b.build_time, 0),
+  COALESCE(b.status, ''),
+  COALESCE(b.options, '{}')
+FROM
+  projects p
+LEFT JOIN
+  builds b
+ON
+  p.id = b.project_id
+WHERE
+  p.user_id = ?
+`
+	rows, err := db.conn.Query(query, userId)
+	if err != nil {
+		return nil, fmt.Errorf("ListUserProjects query: %w", err)
+	}
+	defer rows.Close()
+
+	var infos []ProjectInfo
+
+	for rows.Next() {
+		var projectInfo ProjectInfo
+		var unparsedOptions string
+		var createdAt string
+		var buildStart string
+		if err := rows.Scan(
+			&projectInfo.Name,
+			&projectInfo.Public,
+			&createdAt,
+			&buildStart,
+			&projectInfo.LatestBuild.BuildTime,
+			&projectInfo.LatestBuild.Status,
+			&unparsedOptions,
+		); err != nil {
+			return nil, fmt.Errorf("ListUserProjects scan: %w", err)
+		}
+
+		projectInfo.CreatedAt, err = time.Parse(SQLiteTime, createdAt)
+		if err != nil {
+			return nil, fmt.Errorf("ListUserProject parse createdAt time: %w", err)
+		}
+
+		projectInfo.LatestBuild.BuildStart, err = time.Parse(SQLiteTimeNano, buildStart)
+		if err != nil {
+			return nil, fmt.Errorf("ListUserProject parse buildStart time: %w", err)
+		}
+
+		if err := json.Unmarshal([]byte(unparsedOptions), &projectInfo.LatestBuild.Options); err != nil {
+			return nil, fmt.Errorf("ListUserProjects unmarshal last build options: %w", err)
+		}
+
+		infos = append(infos, projectInfo)
+	}
+
+	return infos, nil
 }
 
 func (db *Database) GetProjectInfo(user string, project string) (ProjectInfo, error) {
@@ -97,13 +172,13 @@ SELECT
   p.name,
   p.public,
   p.created_at,
-  b.build_start,
-  b.build_time,
-  b.status,
-  b.options
+  COALESCE(b.build_start, datetime(0, 'unixepoch')),
+  COALESCE(b.build_time, 0),
+  COALESCE(b.status, ''),
+  COALESCE(b.options, '{}')
 FROM
   projects p
-INNER JOIN
+LEFT JOIN
   builds b
 ON
   p.id = b.project_id

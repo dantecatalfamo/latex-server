@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,36 +17,50 @@ const listenAddress = "localhost:3344"
 type Config struct {
 	ProjectDir string // Root of all projects
 	MaxProjectBuildTime time.Duration // Max time a project can build
-	Database *Database
+	Database *Database // Database object
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		usage();
+	databasePath := flag.String("db", "latexServer.db", "Database path")
+	projectsDir := flag.String("root", "latex", "Root of project directories")
+	listenAddr := flag.String("listen", listenAddress, "Listen address")
+	flag.Parse()
+
+	db, err := NewDatabse(*databasePath)
+	if err != nil {
+		log.Fatalf("Failed to open database: %s", err)
 	}
-	command := os.Args[1]
-	switch command {
+
+	config := Config{
+		ProjectDir: *projectsDir,
+		MaxProjectBuildTime: 30 * time.Second,
+		Database: db,
+	}
+	log.Printf("ProjectsDir: %s, Max Build Time: %s, Database: %v", config.ProjectDir, config.MaxProjectBuildTime, config.Database)
+
+	cmd := flag.Args()
+	if len(cmd) == 0 {
+		flag.Usage()
+		return
+	}
+	switch cmd[0] {
 	case "server":
-		if len(os.Args) < 4 { usage() }
-		projectsDir := os.Args[2]
-		databasePath := os.Args[3]
-		db, err := NewDatabse(databasePath)
-		if err != nil {
-			log.Fatalf("Failed to open database: %s", err)
-		}
-		config := Config{
-			ProjectDir: projectsDir,
-			MaxProjectBuildTime: 30 * time.Second,
-			Database: db,
-		}
-		log.Printf("ProjectsDir: %s, Max Build Time: %s, Database: %v", config.ProjectDir, config.MaxProjectBuildTime, config.Database)
 		mux := chi.NewMux()
 		SetupRoutes(config, mux)
 		log.Printf("Listening on http://%s", listenAddress)
-		err = http.ListenAndServe(listenAddress, mux)
+		err = http.ListenAndServe(*listenAddr, mux)
 		if err != nil {
 			log.Panic(err)
 		}
+	case "useradd":
+		if len(cmd) < 2 {
+			return
+		}
+		user := cmd[1]
+		if err := CreateUser(config, user); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("Added user %s", user)
 	case "pull":
 		log.Println("Pulling image")
 		ctx := context.Background()

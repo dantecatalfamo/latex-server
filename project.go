@@ -26,13 +26,13 @@ func NewProject(config Config, user string, name string) error {
 	}
 
 	projectPath := filepath.Join(config.ProjectDir, user, name)
-	if err := os.Mkdir(projectPath, os.ModePerm); err != nil {
+	if err := os.Mkdir(projectPath, 0700); err != nil {
 		return fmt.Errorf("NewProject Mkdir: %w", err)
 	}
 
 	for _, subdir := range([]string{"aux", "out", "src"}) {
 		subDirPath := filepath.Join(projectPath, subdir)
-		if err := os.Mkdir(subDirPath, os.ModePerm); err != nil {
+		if err := os.Mkdir(subDirPath, 0700); err != nil {
 			return fmt.Errorf("NewProject subdir: %w", err)
 		}
 	}
@@ -196,6 +196,14 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 		return "", fmt.Errorf("BuildProject: %w", err)
 	}
 
+	if err := ClearProjectDir(config, user, projectName, "aux"); err != nil {
+		return "", fmt.Errorf("BuildProject clearing %s/%s/aux: %w", user, projectName, err)
+	}
+
+	if err := ClearProjectDir(config, user, projectName, "out"); err != nil {
+		return "", fmt.Errorf("BuildProject clearing %s/%s/out: %w", user, projectName, err)
+	}
+
 	opts, err := json.Marshal(options)
 	if err != nil {
 		return "", fmt.Errorf("BuildProject marshall: %w", err)
@@ -249,7 +257,7 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 	return buildOut, nil
 }
 
-func DeleteProject(config Config, user, projectName string) error {
+func DeleteProject(config Config, user string, projectName string) error {
 	projectPath := filepath.Join(config.ProjectDir, user, projectName)
 
 	projectId, err := config.Database.GetProjectId(user, projectName)

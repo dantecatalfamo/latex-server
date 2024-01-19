@@ -4,7 +4,7 @@ var migrations = []string{
 `
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER NOT NULL PRIMARY KEY,
-  name TEXT
+  name TEXT UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS projects (
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS files (
   FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS files_projects_subdir_index ON files(project_id, subdir);
+CREATE UNIQUE INDEX IF NOT EXISTS files_projects_subdir_index ON files(project_id, subdir, path);
 
 CREATE TABLE IF NOT EXISTS schema_migration (
   version INTEGER
