@@ -35,9 +35,13 @@ func SetupRoutes(config Config, router *chi.Mux) {
 	})
 	// Create a new project
 	router.Post("/{user}", func(w http.ResponseWriter, r *http.Request) {
-		// TODO get new project name from POST form
-		project := "test"
 		user := chi.URLParam(r, "user")
+		r.ParseForm()
+		project := r.FormValue("project")
+		if project == "" {
+			http.Error(w, "Missing project name", http.StatusBadRequest)
+			return
+		}
 		if err := NewProject(config, user, project); err != nil {
 			http.Error(w, "Failed to create new project", http.StatusInternalServerError)
 			log.Printf("POST /%s: %s", user, err)
