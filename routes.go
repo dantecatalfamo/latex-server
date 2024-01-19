@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"os/exec"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -117,7 +119,13 @@ func SetupRoutes(config Config, router *chi.Mux) {
 
 		stdout, err := BuildProject(context.Background(), config, user, project, options)
 		if err != nil {
-			http.Error(w, stdout, http.StatusUnprocessableEntity)
+			// If the error was the child process, return the output
+			var execErr *exec.ExitError
+			if errors.As(err, &execErr) {
+				http.Error(w, stdout, http.StatusUnprocessableEntity)
+			} else {
+				http.Error(w, "Unable to build project", http.StatusInternalServerError)
+			}
 			log.Printf("POST %s: %s", r.URL.Path, err)
 			return
 		}

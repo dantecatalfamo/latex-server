@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/sha512"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -222,6 +224,8 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 	beginTime := time.Now()
 	timeoutCtx, cancel := context.WithTimeout(ctx, config.MaxProjectBuildTime)
 
+	// If error is type *ExitError, the cmdOut should be populated
+	// with an error message
 	buildOut, err := RunBuild(timeoutCtx, BuildOptions{
 		AuxDir: auxPath,
 		OutDir: outPath,
@@ -239,14 +243,19 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 	buildOut = strings.ReplaceAll(buildOut, projectPath, "<project>")
 
 	if err != nil {
+		reason := "(internal)"
+		var execErr *exec.ExitError
+		if errors.As(err, &execErr) {
+			reason = fmt.Sprintf("(%d)", execErr.ExitCode())
+		}
 		if _, err := config.Database.conn.Exec(
 			"UPDATE builds SET status = ?, build_time = ?, build_out = ? WHERE id = ?",
-			fmt.Sprintf("failed (%s)", err),
+			fmt.Sprintf("failed %s", reason),
 			buildTime.Seconds(),
 			buildOut,
 			buildId,
 		); err != nil {
-			return "", fmt.Errorf("BuildProject updating db failed build: %w", err)
+			return buildOut, fmt.Errorf("BuildProject updating db failed build: %w", err)
 		}
 
 		return buildOut, fmt.Errorf("BuildProject failed build: %w", err)
@@ -258,7 +267,15 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 		buildOut,
 		buildId,
 	); err != nil {
-		return "", fmt.Errorf("BuildProject updating db finished build: %w", err)
+		return buildOut, fmt.Errorf("BuildProject updating db finished build: %w", err)
+	}
+
+	if err := ScanProjectFiles(config, user, projectName, "aux"); err != nil {
+		return buildOut, fmt.Errorf("BuildProject scan aux: %w", err)
+	}
+
+	if err := ScanProjectFiles(config, user, projectName, "out"); err != nil {
+		return buildOut, fmt.Errorf("BuildProject scan out: %w", err)
 	}
 
 	return buildOut, nil
