@@ -193,16 +193,28 @@ LIMIT 1
 
 	var projectInfo ProjectInfo
 	var unparsedOptions string
+	var createdAt string
+	var buildStart string
 	if err := row.Scan(
 		&projectInfo.Name,
 		&projectInfo.Public,
-		&projectInfo.CreatedAt,
-		&projectInfo.LatestBuild.BuildStart,
+		&createdAt,
+		&buildStart,
 		&projectInfo.LatestBuild.BuildTime,
 		&projectInfo.LatestBuild.Status,
 		&unparsedOptions,
 	); err != nil {
 		return ProjectInfo{}, fmt.Errorf("GetProjectInfo scan: %w", err)
+	}
+
+	projectInfo.CreatedAt, err = time.Parse(SQLiteTime, createdAt)
+	if err != nil {
+		return ProjectInfo{}, fmt.Errorf("GetProjectInfo parse createdAt time: %w", err)
+	}
+
+	projectInfo.LatestBuild.BuildStart, err = time.Parse(SQLiteTimeNano, buildStart)
+	if err != nil {
+		return ProjectInfo{}, fmt.Errorf("GetProjectInfo parse buildStart time: %w", err)
 	}
 
 	if err := json.Unmarshal([]byte(unparsedOptions), &projectInfo.LatestBuild.Options); err != nil {
@@ -213,7 +225,7 @@ LIMIT 1
 }
 
 func (db *Database) GetProjectId(user string, project string) (int, error) {
-	userId, err := db.GetUserId(project)
+	userId, err := db.GetUserId(user)
 	if err != nil {
 		return 0, fmt.Errorf("Database.GetProjectId: %w", err)
 	}
