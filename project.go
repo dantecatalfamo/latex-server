@@ -235,10 +235,10 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 	cancel() // Don't leak the context
 
 	if err != nil {
-		log.Println("FUCK!!!")
 		if _, err := config.Database.conn.Exec(
-			"UPDATE builds SET status = 'failed', build_time = ? WHERE id = ?",
+			"UPDATE builds SET status = 'failed', build_time = ?, build_out = ? WHERE id = ?",
 			buildTime.Seconds(),
+			buildOut,
 			buildId,
 		); err != nil {
 			return "", fmt.Errorf("BuildProject updating db failed build: %w", err)
@@ -248,8 +248,9 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 	}
 
 	if _, err := config.Database.conn.Exec(
-		"UPDATE builds SET status = 'finished', build_time = ? WHERE id = ?",
+		"UPDATE builds SET status = 'finished', build_time = ?, build_out = ? WHERE id = ?",
 		buildTime.Seconds(),
+		buildOut,
 		buildId,
 	); err != nil {
 		return "", fmt.Errorf("BuildProject updating db finished build: %w", err)

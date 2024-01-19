@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS builds (
   project_id INTEGER NOT NULL,
   build_start TEXT DEFAULT (datetime('now', 'utc', 'subsecond')),
   build_time REAL,
+  build_out TEXT,
   status TEXT,
   options TEXT,
 

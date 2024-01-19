@@ -90,6 +90,7 @@ type BuildInfo struct {
 	BuildTime float64 `json:"buildTime"`
 	Status string     `json:"status"`
 	Options ProjectBuildOptions `json:"options"`
+	BuildOut string    `json:"buildOut"`
 }
 
 func (db *Database) ListUserProjects(user string) ([]ProjectInfo, error) {
@@ -185,7 +186,8 @@ SELECT
   COALESCE(b.build_start, datetime(0, 'unixepoch')),
   COALESCE(b.build_time, 0),
   COALESCE(b.status, ''),
-  COALESCE(b.options, '{}')
+  COALESCE(b.options, '{}'),
+  COALESCE(b.build_out, '')
 FROM
   projects p
 LEFT JOIN
@@ -215,6 +217,7 @@ LIMIT 1
 		&projectInfo.LatestBuild.BuildTime,
 		&projectInfo.LatestBuild.Status,
 		&unparsedOptions,
+		&projectInfo.LatestBuild.BuildOut,
 	); err != nil {
 		return ProjectInfo{}, fmt.Errorf("GetProjectInfo scan: %w", err)
 	}
