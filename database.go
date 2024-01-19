@@ -99,7 +99,7 @@ func (db *Database) ListUserProjects(user string) ([]ProjectInfo, error) {
 	}
 
 	// We select the latest build using max(b.id), even through we
-	// don't actually scan that column
+	// don't actually care about that colummn
 	// https://www.sqlite.org/lang_select.html#bareagg
 	query := `
 SELECT
@@ -110,7 +110,7 @@ SELECT
   COALESCE(b.build_time, 0),
   COALESCE(b.status, ''),
   COALESCE(b.options, '{}'),
-  max(b.id)
+  COALESCE(max(b.id), 0)
 FROM
   projects p
 LEFT JOIN
@@ -137,6 +137,7 @@ ORDER BY
 		var unparsedOptions string
 		var createdAt string
 		var buildStart string
+		var buildId int
 		if err := rows.Scan(
 			&projectInfo.Name,
 			&projectInfo.Public,
@@ -145,6 +146,7 @@ ORDER BY
 			&projectInfo.LatestBuild.BuildTime,
 			&projectInfo.LatestBuild.Status,
 			&unparsedOptions,
+			&buildId,
 		); err != nil {
 			return nil, fmt.Errorf("ListUserProjects scan: %w", err)
 		}
