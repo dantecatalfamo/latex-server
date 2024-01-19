@@ -97,11 +97,11 @@ func SetupRoutes(config Config, router *chi.Mux) {
 
 		var engine Engine
 		switch r.Form.Get("engine") {
-		case "pdf":
+		case string(EnginePDF):
 			engine = EnginePDF
-		case "lua":
+		case string(EngineLua):
 			engine = EngineLua
-		case "xe":
+		case string(EngineXeTeX):
 			engine = EngineXeTeX
 		}
 
