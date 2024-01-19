@@ -240,7 +240,8 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 
 	if err != nil {
 		if _, err := config.Database.conn.Exec(
-			"UPDATE builds SET status = 'failed', build_time = ?, build_out = ? WHERE id = ?",
+			"UPDATE builds SET status = ?, build_time = ?, build_out = ? WHERE id = ?",
+			fmt.Sprintf("failed (%s)", err),
 			buildTime.Seconds(),
 			buildOut,
 			buildId,
@@ -248,7 +249,7 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 			return "", fmt.Errorf("BuildProject updating db failed build: %w", err)
 		}
 
-		return "", fmt.Errorf("BuildProject failed build: %w", err)
+		return buildOut, fmt.Errorf("BuildProject failed build: %w", err)
 	}
 
 	if _, err := config.Database.conn.Exec(
