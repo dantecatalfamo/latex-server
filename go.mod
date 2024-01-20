@@ -1,4 +1,4 @@
-module github.com/dantecatalfamo/latex-server
+module github.com/dantecatalfamo/remotex
 
 go 1.20
 
