@@ -391,6 +391,27 @@ func DeleteProjectFile(config Config, user, projectName, subdir, path string) er
 		}
 	}
 
+	// Traverse dirs upward and delete any empty dirs until we get to
+	// the top of the subdir, or we find a non-empty dir
+	dirPath := filepath.Dir(filePath)
+	topDirPath := filepath.Join(projectPath, subdir)
+	for dirPath != topDirPath {
+		empty, err := isDirEmpty(dirPath)
+		if err != nil {
+			return fmt.Errorf("DeleteProjectFile checking empty dir: %w", err)
+		}
+
+		if !empty {
+			break
+		}
+
+		if err := os.Remove(dirPath); err != nil {
+			return fmt.Errorf("DeleteProjectFile clearing empty dirs: %w", err)
+		}
+
+		dirPath = filepath.Dir(dirPath)
+	}
+
 	return nil
 }
 
@@ -439,4 +460,19 @@ func CreateProjectFile(config Config, user, projectName, path string, reader io.
 	}
 
 	return nil
+}
+
+func isDirEmpty(name string) (bool, error) {
+	f, err := os.Open(name)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	_, err = f.Readdir(1)
+
+	if err == io.EOF {
+		return true, nil
+	}
+	return false, err
 }
