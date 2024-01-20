@@ -223,7 +223,7 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 	if buildErr != nil {
 		var execErr *exec.ExitError
 		if errors.As(buildErr, &execErr) {
-			// It's a latexmk error, we can continue
+			// It's a latexmk error
 			if _, err := config.Database.conn.Exec(
 				"UPDATE builds SET status = ?, build_time = ?, build_out = ? WHERE id = ?",
 				fmt.Sprintf("failed (%d)", execErr.ExitCode()),
@@ -234,7 +234,7 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 				return buildOut, fmt.Errorf("BuildProject updating db exit-code failed build: %w", err)
 			}
 		} else {
-			// Non-latexmk error, that's us so we bail
+			// Non-latexmk error
 			if _, err := config.Database.conn.Exec(
 				"UPDATE builds SET status = ?, build_time = ?, build_out = ? WHERE id = ?",
 				"failed (internal)",
@@ -244,7 +244,6 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 			); err != nil {
 				return buildOut, fmt.Errorf("BuildProject updating db internal failed build: %w", err)
 			}
-			return "", fmt.Errorf("BuildProject non-exit-code exec error: %w", buildErr)
 		}
 	} else {
 		if _, err := config.Database.conn.Exec(
@@ -271,7 +270,7 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 
 	// Finally return the build error if we have one
 	if buildErr != nil {
-		return buildOut, fmt.Errorf("BuildProject failed build (exit code): %w", buildErr)
+		return buildOut, fmt.Errorf("BuildProject failed build: %w", buildErr)
 	}
 
 	return buildOut, nil
