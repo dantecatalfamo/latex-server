@@ -63,6 +63,15 @@ func main() {
 			log.Fatal(err)
 		}
 		log.Printf("Added user %s", user)
+	case "userdel":
+		if len(cmd) < 2 {
+			return
+		}
+		user := cmd[1]
+		if err := DeleteUser(config, user); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("Deleted user %s", user)
 	case "pull":
 		log.Println("Pulling image")
 		ctx := context.Background()

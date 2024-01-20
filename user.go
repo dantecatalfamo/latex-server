@@ -18,3 +18,16 @@ func CreateUser(config Config, name string) error {
 
 	return nil
 }
+
+func DeleteUser(config Config, name string) error {
+	if _, err := config.Database.conn.Exec("DELETE FROM users WHERE name = ?", name); err != nil {
+		return fmt.Errorf("DeleteUser delete from db: %w", err)
+	}
+
+	userDir := filepath.Join(config.ProjectDir, name)
+	if err := os.RemoveAll(userDir); err != nil {
+		return fmt.Errorf("DeleteUser RemoveAll dir: %w", err)
+	}
+
+	return nil
+}

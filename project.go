@@ -44,8 +44,8 @@ func NewProject(config Config, user string, name string) error {
 }
 
 type FileInfo struct {
-	Path string        `json:"path"`
-	Size uint64        `json:"size"`
+	Path string       `json:"path"`
+	Size uint64       `json:"size"`
 	Sha256Sum string  `json:"sha256sum"`
 }
 

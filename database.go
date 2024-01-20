@@ -20,7 +20,8 @@ type Database struct {
 }
 
 func NewDatabse(path string) (*Database, error) {
-	db, err := sql.Open("sqlite3", path)
+	dbSpec := fmt.Sprintf("file:%s?cache=shared&_journal_mode=WAL&_foreign_keys=true", path)
+	db, err := sql.Open("sqlite3", dbSpec)
 	if err != nil {
 		return nil, fmt.Errorf("NewDatabase: %w", err)
 	}

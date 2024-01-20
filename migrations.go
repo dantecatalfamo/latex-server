@@ -7,6 +7,15 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT UNIQUE
 );
 
+CREATE TABLE IF NOT EXISTS tokens (
+  user_id INTEGER NOT NULL,
+  token TEXT NOT NULL,
+  description TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now', 'utc')),
+
+  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS projects (
   id INTEGER NOT NULL PRIMARY KEY,
   name TEXT,
