@@ -142,7 +142,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 		user := chi.URLParam(r, "user")
 		project := chi.URLParam(r, "project")
 
-		files, err := ListProjectFiles(config, user, project, "src")
+		files, err := config.Database.ListProjectFiles(user, project, "src")
 		if err != nil {
 			http.Error(w, "Failed to list project files", http.StatusInternalServerError)
 			log.Printf("GET %s: %s", r.URL.Path, err)
@@ -223,7 +223,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 		user := chi.URLParam(r, "user")
 		project := chi.URLParam(r, "project")
 
-		files, err := ListProjectFiles(config, user, project, "aux")
+		files, err := config.Database.ListProjectFiles(user, project, "aux")
 		if err != nil {
 			http.Error(w, "Failed to list project files", http.StatusInternalServerError)
 			log.Printf("GET %s: %s", r.URL.Path, err)
@@ -260,7 +260,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 		user := chi.URLParam(r, "user")
 		project := chi.URLParam(r, "project")
 
-		files, err := ListProjectFiles(config, user, project, "out")
+		files, err := config.Database.ListProjectFiles(user, project, "out")
 		if err != nil {
 			http.Error(w, "Failed to list project files", http.StatusInternalServerError)
 			log.Printf("GET %s: %s", r.URL.Path, err)

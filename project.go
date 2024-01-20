@@ -49,38 +49,6 @@ type FileInfo struct {
 	Sha256Sum string  `json:"sha256sum"`
 }
 
-// ListProjectFiles returns a list of files in the subdir of a project
-// directory.
-func ListProjectFiles(config Config, user string, projectName string, subdir string) ([]FileInfo, error) {
-	projectId, err := config.Database.GetProjectId(user, projectName)
-	if err != nil {
-		return nil, fmt.Errorf("ListProjectFiles: %w", err)
-	}
-
-	rows, err := config.Database.conn.Query("SELECT path, size, sha256sum FROM files WHERE project_id = ? AND subdir = ?", projectId, subdir)
-	if err != nil {
-		return nil, fmt.Errorf("ListProjectFiles query: %w", err)
-	}
-
-	defer rows.Close()
-
-	var fileInfo []FileInfo
-
-	for rows.Next() {
-		info := FileInfo{}
-		if err := rows.Scan(&info.Path, &info.Size, &info.Sha256Sum); err != nil {
-			return nil, fmt.Errorf("ListProjectFiles row scan: %w", err)
-		}
-		fileInfo = append(fileInfo, info)
-	}
-
-	if rows.Err() != nil {
-		return nil, fmt.Errorf("ListProjectFiles rows error: %w", rows.Err())
-	}
-
-	return fileInfo, nil
-}
-
 // ScanProjectFiles deletes the file list from a project's subdir and
 // re-scans them
 func ScanProjectFiles(config Config, user string, projectName string, subdir string) error {
@@ -263,10 +231,19 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 				buildOut,
 				buildId,
 			); err != nil {
-				return buildOut, fmt.Errorf("BuildProject updating db failed build: %w", err)
+				return buildOut, fmt.Errorf("BuildProject updating db exit-code failed build: %w", err)
 			}
 		} else {
 			// Non-latexmk error, that's us so we bail
+			if _, err := config.Database.conn.Exec(
+				"UPDATE builds SET status = ?, build_time = ?, build_out = ? WHERE id = ?",
+				"failed (internal)",
+				buildTime.Seconds(),
+				buildOut,
+				buildId,
+			); err != nil {
+				return buildOut, fmt.Errorf("BuildProject updating db internal failed build: %w", err)
+			}
 			return "", fmt.Errorf("BuildProject non-exit-code exec error: %w", buildErr)
 		}
 	} else {

@@ -239,6 +239,39 @@ LIMIT 1
 	return projectInfo, nil
 }
 
+// ListProjectFiles returns a list of files in the subdir of a project
+// directory.
+func (db *Database) ListProjectFiles(user string, projectName string, subdir string) ([]FileInfo, error) {
+	projectId, err := db.GetProjectId(user, projectName)
+	if err != nil {
+		return nil, fmt.Errorf("ListProjectFiles: %w", err)
+	}
+
+	rows, err := db.conn.Query("SELECT path, size, sha256sum FROM files WHERE project_id = ? AND subdir = ?", projectId, subdir)
+	if err != nil {
+		return nil, fmt.Errorf("ListProjectFiles query: %w", err)
+	}
+
+	defer rows.Close()
+
+	var fileInfo []FileInfo
+
+	for rows.Next() {
+		info := FileInfo{}
+		if err := rows.Scan(&info.Path, &info.Size, &info.Sha256Sum); err != nil {
+			return nil, fmt.Errorf("ListProjectFiles row scan: %w", err)
+		}
+		fileInfo = append(fileInfo, info)
+	}
+
+	if rows.Err() != nil {
+		return nil, fmt.Errorf("ListProjectFiles rows error: %w", rows.Err())
+	}
+
+	return fileInfo, nil
+}
+
+
 func (db *Database) GetProjectId(user string, project string) (int, error) {
 	userId, err := db.GetUserId(user)
 	if err != nil {
