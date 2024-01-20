@@ -3,11 +3,9 @@ package main
 import (
 	"flag"
 	"log"
-	"net/http"
 	"time"
 
 	"github.com/dantecatalfamo/remotex/pkg/server"
-	"github.com/go-chi/chi/v5"
 )
 
 const listenAddress = "localhost:3344"
@@ -28,6 +26,7 @@ func main() {
 		MaxProjectBuildTime: 30 * time.Second,
 		Database: db,
 		MaxFileSize: 25 * 1024 * 1024,
+		ListenAddress: *listenAddr,
 	}
 	log.Printf("ProjectsDir: %s, Max Build Time: %s, Database: %v", config.ProjectDir, config.MaxProjectBuildTime, config.Database)
 
@@ -38,10 +37,8 @@ func main() {
 	}
 	switch cmd[0] {
 	case "server":
-		mux := chi.NewMux()
-		server.SetupRoutes(config, mux)
-		log.Printf("Listening on http://%s", listenAddress)
-		err = http.ListenAndServe(*listenAddr, mux)
+		log.Printf("Listening on http://%s", config.ListenAddress)
+		server.RunServer(config)
 		if err != nil {
 			log.Panic(err)
 		}
