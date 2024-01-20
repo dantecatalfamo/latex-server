@@ -17,7 +17,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 	// TODO Add route to list builds/get specific/latest build info
 	// Maybe /user/project/builds (list)
 	//       /user/project/builds/(id|latest) (build info)
-	// TODO Authenticate routes
+	// TODO Authenticate routes, check if public, etc.
 	// List projects
 	router.Get("/{user}", func(w http.ResponseWriter, r *http.Request) {
 		user := chi.URLParam(r, "user")
