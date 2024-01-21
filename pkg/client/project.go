@@ -134,6 +134,11 @@ func ScanProjectFiles(projectRoot, subdir string) ([]server.FileInfo, error) {
 			return nil
 		}
 
+		// Don't go into git directory if it exists
+		if filepath.Base(path) == ".git" {
+			return filepath.SkipDir
+		}
+
 		fileData, err := os.ReadFile(path)
 		if err != nil {
 			log.Printf("Read file error: %s", err)
