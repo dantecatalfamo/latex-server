@@ -54,7 +54,7 @@ type FileInfo struct {
 func ScanProjectFiles(config Config, user string, projectName string, subdir string) error {
 	projectPath := filepath.Join(config.ProjectDir, user, projectName)
 	filesPath := filepath.Join(projectPath, subdir)
-	removePrefix := filesPath + "/"
+	removePrefix := filesPath + string(filepath.Separator)
 
 	log.Printf("Scanning %s/%s/%s", user, projectName, subdir)
 
