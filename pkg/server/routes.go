@@ -63,7 +63,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 		projectInfo, err := config.Database.GetProjectInfo(user, project)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				http.Error(w, "404 page not found", 404)
+				http.Error(w, "404 page not found", http.StatusBadRequest)
 			} else {
 				http.Error(w, "Failed to retrieve project information", http.StatusInternalServerError)
 				log.Printf("GET /%s/%s: %s", user, project, err)

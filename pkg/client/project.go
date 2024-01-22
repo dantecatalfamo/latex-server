@@ -310,9 +310,11 @@ func PushProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConf
 	return size, nil
 }
 
-// func PushProjectFiles(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot, subdir string) error {
-//
-// }
+// func DeleteRemoteProjectFile
+// func DeleteLocalProjectFile
+
+// func PushProjectFiles(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot, subdir string) error {}
+// func PullProjectFiles(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot, subdir string) error {}
 
 type FileInfoMove struct {
 	From server.FileInfo
