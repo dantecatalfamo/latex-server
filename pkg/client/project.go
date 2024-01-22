@@ -309,3 +309,54 @@ func PushProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConf
 
 	return size, nil
 }
+
+// func PushProjectFiles(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot, subdir string) error {
+//
+// }
+
+type FileInfoMove struct {
+	From server.FileInfo
+	To server.FileInfo
+}
+
+type FileInfoDiff struct {
+	Removed []server.FileInfo
+	Added []server.FileInfo
+	Same []server.FileInfo
+	Moved []FileInfoMove
+}
+
+func DiffFileInfoLists(original []server.FileInfo, other []server.FileInfo) FileInfoDiff {
+	// TODO doesn't handle moved files, but neither does the server (for now)
+	var removed []server.FileInfo
+	var added []server.FileInfo
+	var same []server.FileInfo
+
+outerRemoved:
+	for _, origFile := range original {
+		for _, otherFile := range other {
+			if origFile.Sha256Sum == otherFile.Sha256Sum && origFile.Path == otherFile.Path {
+				same = append(same, origFile)
+				continue outerRemoved
+			}
+		}
+		removed = append(removed, origFile)
+	}
+
+outerAdded:
+	for _, otherFile := range other {
+		for _, origFile := range original {
+			if origFile.Sha256Sum == otherFile.Sha256Sum && origFile.Path == otherFile.Path {
+				continue outerAdded
+			}
+		}
+
+		added = append(added, otherFile)
+	}
+
+	return FileInfoDiff{
+		Removed: removed,
+		Added: added,
+		Same: same,
+	}
+}
