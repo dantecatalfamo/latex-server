@@ -9,6 +9,7 @@ type Config struct {
 	Database *Database // Database object
 	MaxFileSize uint // Maximum upload size
 	BuildMode BuildMode // Select between native or containerized builds
+	AllowLatexmkrc bool // Allow auto-reading latexmkrc files
 }
 
 type BuildMode string

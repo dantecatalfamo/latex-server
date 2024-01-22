@@ -30,6 +30,7 @@ type BuildOptions struct {
 	FileLineError bool
 	Dependents bool
 	BuildMode BuildMode
+	AllowLatexmkrc bool
 }
 
 func RunBuild(ctx context.Context, options BuildOptions) (string, error) {
@@ -58,7 +59,11 @@ func RunBuildNative(ctx context.Context, options BuildOptions) (string, error) {
 	auxDir := fmt.Sprintf("-auxdir=%s", options.AuxDir)
 	outDir := fmt.Sprintf("-outdir=%s", options.OutDir)
 
-	args := []string{engineArg, auxDir, outDir, "-norc"};
+	args := []string{engineArg, auxDir, outDir};
+
+	if !options.AllowLatexmkrc {
+		args = append(args, "-norc")
+	}
 
 	if options.Document != "" {
 		args = append(args, options.Document)

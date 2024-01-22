@@ -28,8 +28,9 @@ func main() {
 		MaxFileSize: 25 * 1024 * 1024,
 		ListenAddress: *listenAddr,
 		BuildMode: server.BuildModeNative,
+		AllowLatexmkrc: false,
 	}
-	log.Printf("ProjectsDir: %s, Max Build Time: %s, Database: %v", config.ProjectDir, config.MaxProjectBuildTime, config.Database)
+	log.Printf("Server config: %+v", config)
 
 	cmd := flag.Args()
 	if len(cmd) == 0 {

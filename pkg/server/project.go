@@ -158,6 +158,7 @@ type ProjectBuildOptions struct {
 	Engine Engine `json:"engine"` // LaTeX engine to use
 	Document string `json:"document"` // The name of the main document
 	Dependents bool `json:"dependents"` // List dependent files in build output
+	CleanBuild bool `json:"cleanBuild"` // Clean aux and out directories before starting the build
 }
 
 // BuildProject builds a project using latexmk using the options
@@ -173,12 +174,14 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 		return "", fmt.Errorf("BuildProject: %w", err)
 	}
 
-	if err := ClearProjectDir(config, user, projectName, "aux"); err != nil {
-		return "", fmt.Errorf("BuildProject clearing %s/%s/aux: %w", user, projectName, err)
-	}
+	if options.CleanBuild {
+		if err := ClearProjectDir(config, user, projectName, "aux"); err != nil {
+			return "", fmt.Errorf("BuildProject clearing %s/%s/aux: %w", user, projectName, err)
+		}
 
-	if err := ClearProjectDir(config, user, projectName, "out"); err != nil {
-		return "", fmt.Errorf("BuildProject clearing %s/%s/out: %w", user, projectName, err)
+		if err := ClearProjectDir(config, user, projectName, "out"); err != nil {
+			return "", fmt.Errorf("BuildProject clearing %s/%s/out: %w", user, projectName, err)
+		}
 	}
 
 	opts, err := json.Marshal(options)
@@ -210,6 +213,7 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 		Force: options.Force,
 		FileLineError: options.FileLineError,
 		Dependents: options.Dependents,
+		AllowLatexmkrc: config.AllowLatexmkrc,
 	})
 	buildTime := time.Since(beginTime)
 	cancel() // Don't leak the context

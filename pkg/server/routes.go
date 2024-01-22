@@ -114,6 +114,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 			Document: r.Form.Get("document"),
 			Engine: engine,
 			Dependents: r.Form.Has("dependents"),
+			CleanBuild: r.Form.Has("cleanBuild"),
 		}
 
 		log.Printf("Build started: %s/%s %+v", user, project, options)
