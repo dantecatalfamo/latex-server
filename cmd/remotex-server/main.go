@@ -27,6 +27,7 @@ func main() {
 		Database: db,
 		MaxFileSize: 25 * 1024 * 1024,
 		ListenAddress: *listenAddr,
+		BuildMode: server.BuildModeNative,
 	}
 	log.Printf("ProjectsDir: %s, Max Build Time: %s, Database: %v", config.ProjectDir, config.MaxProjectBuildTime, config.Database)
 

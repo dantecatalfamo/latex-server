@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -28,9 +29,20 @@ type BuildOptions struct {
 	Force bool
 	FileLineError bool
 	Dependents bool
+	BuildMode BuildMode
 }
 
 func RunBuild(ctx context.Context, options BuildOptions) (string, error) {
+	if options.BuildMode == BuildModeNative {
+		return RunBuildNative(ctx, options)
+	} else if options.BuildMode == BuildModeDocker {
+		// TODO re-add docker build mode
+		return "", errors.New("docker build mode not yet implemented")
+	}
+	return "", errors.New("invalid build mode")
+}
+
+func RunBuildNative(ctx context.Context, options BuildOptions) (string, error) {
 	var engineArg string
 	switch options.Engine {
 	case EnginePDF:

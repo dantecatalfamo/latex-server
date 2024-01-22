@@ -8,4 +8,10 @@ type Config struct {
 	MaxProjectBuildTime time.Duration // Max time a project can build
 	Database *Database // Database object
 	MaxFileSize uint // Maximum upload size
+	BuildMode BuildMode // Select between native or containerized builds
 }
+
+type BuildMode string
+
+const BuildModeNative = "native"
+const BuildModeDocker = "docker"
