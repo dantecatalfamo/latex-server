@@ -1,12 +1,16 @@
 package client
 
 import (
+	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,9 +21,9 @@ import (
 	"github.com/dantecatalfamo/remotex/pkg/server"
 )
 
-const RepoConfigName = ".remotex"
+const ProjectConfigName = ".remotex"
 
-func NewProject(globalConfig GlobalConfig, projectName, path string) error {
+func NewProject(globalConfig GlobalConfig, projectName, projectRoot string) error {
 	// Should fetch project info before continuing
 	_, fetchErr := FetchProjectInfo(globalConfig, projectName)
 	if fetchErr == nil {
@@ -32,26 +36,55 @@ func NewProject(globalConfig GlobalConfig, projectName, path string) error {
 
 	// Project does not exist
 
-	if err := os.MkdirAll(path, 0700); err != nil {
+	if err := os.MkdirAll(projectRoot, 0700); err != nil {
 		return fmt.Errorf("NewProject MkdirAll: %w", err)
 	}
 
 	for _, subdir := range []string{"aux", "out", "src"} {
-		subdirPath := filepath.Join(path, subdir)
+		subdirPath := filepath.Join(projectRoot, subdir)
 		os.Mkdir(subdirPath, 0700)
 	}
 
-	repoConfig := RepoConfig{ProjectName: projectName}
-	repoConfigPath := filepath.Join(path, RepoConfigName)
+	projectConfig := ProjectConfig{ProjectName: projectName}
 
-	file, err := os.Create(repoConfigPath)
+	if err := WriteProjectConfig(projectRoot, projectConfig); err != nil {
+		return fmt.Errorf("NewProject write config: %w", err)
+	}
+
+	return nil
+}
+
+func ReadProjectConfig(projectRoot string) (ProjectConfig, error) {
+	configPath := filepath.Join(projectRoot, ProjectConfigName)
+
+	file, err := os.Open(configPath)
 	if err != nil {
-		return fmt.Errorf("NewProject create repo config: %w", err)
+		return ProjectConfig{}, fmt.Errorf("ReadProjectConfig open file: %w", err)
 	}
 	defer file.Close()
 
-	if err := json.NewEncoder(file).Encode(repoConfig); err != nil {
-		return fmt.Errorf("NewProject encode repo config: %w", err)
+	var projectConfig ProjectConfig
+
+	if err := json.NewDecoder(file).Decode(&projectConfig); err != nil {
+		return ProjectConfig{}, fmt.Errorf("ReadProjectConfig decode json: %w", err)
+	}
+
+	return projectConfig, nil
+}
+
+func WriteProjectConfig(projectRoot string, projectConfig ProjectConfig) error {
+	configPath := filepath.Join(projectRoot, ProjectConfigName)
+
+	file, err := os.Create(configPath)
+	if err != nil {
+		return fmt.Errorf("WriteProjectConfig create file: %w", err)
+	}
+	defer file.Close()
+
+	enc := json.NewEncoder(file)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(projectConfig); err != nil {
+		return fmt.Errorf("WriteProjectConfig encode: %w", err)
 	}
 
 	return nil
@@ -110,7 +143,7 @@ func FindProjectRoot() (string, error) {
 			return "", fmt.Errorf("FindProjectRoot read dir: %w", err)
 		}
 		for _, entry := range entries {
-			if entry.Name() == RepoConfigName {
+			if entry.Name() == ProjectConfigName {
 				return path, nil
 			}
 		}
@@ -195,4 +228,84 @@ func FetchProjectFileList(globalConfig GlobalConfig, projectName, subdir string)
 	}
 
 	return fileInfos, nil
+}
+
+func PullProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot, subdir, filePath string) (int64, error) {
+	// TODO auth
+
+	fileUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User, projectConfig.ProjectName, subdir, filePath)
+	if err != nil {
+		return 0, fmt.Errorf("PullProjectFile join url: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", fileUrl, nil)
+	if err != nil {
+		return 0, fmt.Errorf("PullProjectFile create request object: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("PullProjectFile do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return 0, fmt.Errorf("PullProjectFile unexpected error code %d", resp.StatusCode)
+	}
+
+	localPath := filepath.Join(projectRoot, subdir, filePath)
+	file, err := os.Create(localPath)
+	if err != nil {
+		return 0, fmt.Errorf("PullProjectFile create file: %w", err)
+	}
+	defer file.Close()
+
+	size, err := io.Copy(file, resp.Body)
+	if err != nil {
+		return 0, fmt.Errorf("PullProjectFile write file: %w", err)
+	}
+
+	return size, nil
+}
+
+func PushProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot, subdir, filePath string) (int64, error) {
+	// TODO auth
+
+	fileUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User, projectConfig.ProjectName, subdir, filePath)
+	if err != nil {
+		return 0, fmt.Errorf("PushProjectFile join url: %w", err)
+	}
+
+	localPath := filepath.Join(projectRoot, subdir, filePath)
+	file, err := os.Open(localPath)
+	if err != nil {
+		return 0, fmt.Errorf("PushProjectFile open file: %w", err)
+	}
+	defer file.Close()
+
+	body := new(bytes.Buffer)
+	form := multipart.NewWriter(body)
+	part, err := form.CreateFormFile("file", filepath.Base(filePath))
+	if err != nil {
+		return 0, fmt.Errorf("PushProjectFile create form file: %w", err)
+	}
+	size, err := io.Copy(part, file)
+	if err != nil {
+		return 0, fmt.Errorf("PushProjectFile write form file: %w", err)
+	}
+	form.Close()
+
+	req, err := http.NewRequestWithContext(ctx, "POST", fileUrl, body)
+	req.Header.Add("Content-Type", form.FormDataContentType())
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("PushProjectFile send post request: %w", err)
+	}
+
+	if resp.StatusCode != 200 {
+		return 0, fmt.Errorf("PushProjectFile unexpected status code %d", resp.StatusCode)
+	}
+
+	return size, nil
 }

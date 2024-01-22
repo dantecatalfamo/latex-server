@@ -7,8 +7,11 @@ type GlobalConfig struct {
 	ServerBaseUrl string `json:"serverBaseUrl"`
 }
 
-type RepoConfig struct {
+type ProjectConfig struct {
 	BuildOptions server.ProjectBuildOptions `json:"buildOptions"`
 	ProjectName string `json:"projectName"`
 	SaveAuxFiles bool `json:"saveAuxFiles"`
 }
+
+// TODO Make project name and id different?
+// Make IDs random strings and the name is the user readable name?
