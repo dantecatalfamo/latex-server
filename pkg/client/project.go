@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -59,7 +60,11 @@ func NewProject(globalConfig GlobalConfig, projectName, path string) error {
 func FetchProjectInfo(globalConfig GlobalConfig, projectName string) (server.ProjectInfo, error) {
 	// TODO incorporate auth at some point
 
-	projectUrl := fmt.Sprintf("%s/%s/%s", globalConfig.serverBaseUrl, globalConfig.user, projectName)
+	projectUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User, projectName)
+	if err != nil {
+		return server.ProjectInfo{}, fmt.Errorf("FetchProjectInfo path join: %w", err)
+	}
+
 	resp, err := http.Get(projectUrl)
 	if err != nil {
 		return server.ProjectInfo{}, fmt.Errorf("FetchProjectInfo http get: %w", err)
@@ -157,6 +162,37 @@ func ScanProjectFiles(projectRoot, subdir string) ([]server.FileInfo, error) {
 
 		return nil
 	})
+
+	return fileInfos, nil
+}
+
+func FetchProjectFileList(globalConfig GlobalConfig, projectName, subdir string) ([]server.FileInfo, error) {
+	// TODO add auth
+
+	filesUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User, projectName, subdir)
+	if err != nil {
+		return nil, fmt.Errorf("FetchProjectFileList join path: %w", err)
+	}
+
+	resp, err := http.Get(filesUrl)
+	if err != nil {
+		return nil, fmt.Errorf("FetchProjectFileList http get: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 404 {
+		return nil, ErrProjectNotExist
+	}
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("FetchProjectFileList unecpected status code %d", resp.StatusCode)
+	}
+
+	var fileInfos []server.FileInfo
+
+	if err := json.NewDecoder(resp.Body).Decode(&fileInfos); err != nil {
+		return nil, fmt.Errorf("FetchProjectFileList decode json: %w", err)
+	}
 
 	return fileInfos, nil
 }

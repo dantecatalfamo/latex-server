@@ -3,12 +3,12 @@ package client
 import "github.com/dantecatalfamo/remotex/pkg/server"
 
 type GlobalConfig struct {
-	user string
-	serverBaseUrl string
+	User string `json:"user"`
+	ServerBaseUrl string `json:"serverBaseUrl"`
 }
 
 type RepoConfig struct {
-	BuildOptions server.ProjectBuildOptions
-	ProjectName string
-	SaveAuxFiles bool
+	BuildOptions server.ProjectBuildOptions `json:"buildOptions"`
+	ProjectName string `json:"projectName"`
+	SaveAuxFiles bool `json:"saveAuxFiles"`
 }
