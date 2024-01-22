@@ -1,6 +1,19 @@
 \documentclass{standalone}
 
-\def\RemoTeX{R\kern-0.14em\raisebox{0.392ex}{e}\kern-0.09emm\kern-0.05emo\kern-0.16em\TeX}
+\def\RemoTeXa{R\kern-0.14em\raisebox{0.392ex}{e}\kern-0.09emm\kern-0.05emo\kern-0.16em\TeX}
+
+% see https://tex.stackexchange.com/questions/576221/how-to-create-a-latex-like-logo-using-any-word-at-hand
+% see https://tex.stackexchange.com/questions/60499/custom-latex-logo
+\def\RemoTeXb{%
+  \mbox{%
+    R\kern-0.14em%
+    \raisebox{0.3ex}{e}\kern-0.12em%
+    M\kern-0.1em%
+    \footnotesize{}\raisebox{0.15ex}{o}\normalsize\kern-0.27em%
+    \TeX%
+  }
+}
+
 
 \begin{document}
 \RemoTeX
