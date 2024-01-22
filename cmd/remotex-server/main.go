@@ -2,8 +2,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
-	"time"
+	"os"
 
 	"github.com/dantecatalfamo/remotex/pkg/server"
 )
@@ -11,32 +12,39 @@ import (
 const listenAddress = "localhost:3344"
 
 func main() {
-	databasePath := flag.String("db", "latexServer.db", "Database path")
-	projectsDir := flag.String("root", "latex", "Root of project directories")
-	listenAddr := flag.String("listen", listenAddress, "Listen address")
+	configPath := flag.String("config", "", "Configutation file")
 	flag.Parse()
-
-	db, err := server.NewDatabse(*databasePath)
-	if err != nil {
-		log.Fatalf("Failed to open database: %s", err)
-	}
-
-	config := server.Config{
-		ProjectDir: *projectsDir,
-		MaxProjectBuildTime: 30 * time.Second,
-		Database: db,
-		MaxFileSize: 25 * 1024 * 1024,
-		ListenAddress: *listenAddr,
-		BuildMode: server.BuildModeNative,
-		AllowLatexmkrc: false,
-	}
-	log.Printf("Server config: %+v", config)
 
 	cmd := flag.Args()
 	if len(cmd) == 0 {
 		flag.Usage()
 		return
 	}
+
+	if cmd[0] == "newconfig" {
+		if len(cmd) != 2 {
+			fmt.Println("Specify new config path")
+			os.Exit(1)
+		}
+		if err := server.WriteNewConfig(cmd[1]); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if *configPath == "" {
+		fmt.Println("Specify config path")
+		os.Exit(1)
+	}
+
+	config, err := server.ReadAndInitializeConfig(*configPath)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	log.Printf("Server config: %+v", config)
+
 	switch cmd[0] {
 	case "server":
 		log.Printf("Listening on http://%s", config.ListenAddress)

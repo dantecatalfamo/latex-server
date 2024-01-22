@@ -41,6 +41,7 @@ func main() {
 
 		if _, err := client.ReadProjectConfig(path); err == nil {
 			fmt.Println("Project already exists")
+			os.Exit(1)
 		}
 
 		if err := client.NewProject(globalConfig, projectName, path); err != nil {
@@ -51,6 +52,21 @@ func main() {
 		projectRoot := findRoot()
 		for _, subdir := range []string{"src", "aux", "out"} {
 			files, err := client.ScanProjectFiles(projectRoot, subdir)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+
+			fmt.Printf("%s:\n", subdir)
+			for _, file := range files {
+				fmt.Printf("  %+v\n", file)
+			}
+		}
+	case "listremote":
+		projectRoot := findRoot()
+		projectConfig := readProjectConfig(projectRoot)
+		for _, subdir := range []string{"src", "aux", "out"} {
+			files, err := client.FetchProjectFileList(globalConfig, projectConfig.ProjectName, subdir)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
@@ -82,4 +98,13 @@ func findRoot() string {
 		os.Exit(1)
 	}
 	return projectRoot
+}
+
+func readProjectConfig(root string) client.ProjectConfig {
+	config, err := client.ReadProjectConfig(root)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	return config
 }

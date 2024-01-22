@@ -19,12 +19,12 @@ import (
 // NewProject creates a new project belonging to owner with name, and
 // creates the appropriate subdirectories
 func NewProject(config Config, user string, name string) error {
-	userId, err := config.Database.GetUserId(user)
+	userId, err := config.database.GetUserId(user)
 	if err != nil {
 		return fmt.Errorf("NewProject: %w", err)
 	}
 
-	if _, err := config.Database.conn.Exec("INSERT INTO projects (name, user_id) VALUES (?, ?)", name, userId); err != nil {
+	if _, err := config.database.conn.Exec("INSERT INTO projects (name, user_id) VALUES (?, ?)", name, userId); err != nil {
 		return fmt.Errorf("NewProject: %w", err)
 	}
 
@@ -58,12 +58,12 @@ func ScanProjectFiles(config Config, user string, projectName string, subdir str
 
 	log.Printf("Scanning %s/%s/%s", user, projectName, subdir)
 
-	projectId, err := config.Database.GetProjectId(user, projectName)
+	projectId, err := config.database.GetProjectId(user, projectName)
 	if err != nil {
 		return fmt.Errorf("ScanProjectFiles: %w", err)
 	}
 
-	tx, err := config.Database.conn.Begin()
+	tx, err := config.database.conn.Begin()
 	if err != nil {
 		return fmt.Errorf("ScanProjectFiles begin transaction: %w", err)
 	}
@@ -121,7 +121,7 @@ func ClearProjectDir(config Config, user string, projectName string, subdir stri
 	projectPath := filepath.Join(config.ProjectDir, user, projectName)
 	subdirPath := filepath.Join(projectPath, subdir)
 
-	projectId, err := config.Database.GetProjectId(user, projectName)
+	projectId, err := config.database.GetProjectId(user, projectName)
 	if err != nil {
 		return fmt.Errorf("ClearProjectDir: %w", err)
 	}
@@ -144,7 +144,7 @@ func ClearProjectDir(config Config, user string, projectName string, subdir stri
         }
     }
 
-	if _, err = config.Database.conn.Exec("DELETE FROM files WHERE project_id = ? AND subdir = ?", projectId, subdir); err != nil {
+	if _, err = config.database.conn.Exec("DELETE FROM files WHERE project_id = ? AND subdir = ?", projectId, subdir); err != nil {
 		return fmt.Errorf("ClearProjectDir deleting files cache: %w", err)
 	}
 
@@ -169,7 +169,7 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 	outPath := filepath.Join(projectPath, "out")
 	auxPath := filepath.Join(projectPath, "aux")
 
-	projectId, err := config.Database.GetProjectId(user, projectName)
+	projectId, err := config.database.GetProjectId(user, projectName)
 	if err != nil {
 		return "", fmt.Errorf("BuildProject: %w", err)
 	}
@@ -188,7 +188,7 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 	if err != nil {
 		return "", fmt.Errorf("BuildProject marshall: %w", err)
 	}
-	result, err := config.Database.conn.Exec("INSERT INTO builds (project_id, status, options) VALUES (?, ?, ?)", projectId, "running", opts)
+	result, err := config.database.conn.Exec("INSERT INTO builds (project_id, status, options) VALUES (?, ?, ?)", projectId, "running", opts)
 	if err != nil {
 		return "", fmt.Errorf("BuildProject db insert build: %w", err)
 	}
@@ -228,7 +228,7 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 		var execErr *exec.ExitError
 		if errors.As(buildErr, &execErr) {
 			// It's a latexmk error
-			if _, err := config.Database.conn.Exec(
+			if _, err := config.database.conn.Exec(
 				"UPDATE builds SET status = ?, build_time = ?, build_out = ? WHERE id = ?",
 				fmt.Sprintf("failed (%d)", execErr.ExitCode()),
 				buildTime.Seconds(),
@@ -239,7 +239,7 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 			}
 		} else {
 			// Non-latexmk error
-			if _, err := config.Database.conn.Exec(
+			if _, err := config.database.conn.Exec(
 				"UPDATE builds SET status = ?, build_time = ?, build_out = ? WHERE id = ?",
 				"failed (internal)",
 				buildTime.Seconds(),
@@ -250,7 +250,7 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 			}
 		}
 	} else {
-		if _, err := config.Database.conn.Exec(
+		if _, err := config.database.conn.Exec(
 			"UPDATE builds SET status = 'finished', build_time = ?, build_out = ? WHERE id = ?",
 			buildTime.Seconds(),
 			buildOut,
@@ -283,7 +283,7 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 func DeleteProject(config Config, user string, projectName string) error {
 	projectPath := filepath.Join(config.ProjectDir, user, projectName)
 
-	projectId, err := config.Database.GetProjectId(user, projectName)
+	projectId, err := config.database.GetProjectId(user, projectName)
 	if err != nil {
 		return fmt.Errorf("DeleteProject get projec id: %w", err)
 	}
@@ -292,7 +292,7 @@ func DeleteProject(config Config, user string, projectName string) error {
 		return fmt.Errorf("DeleteProject: %w", err)
 	}
 
-	if _, err := config.Database.conn.Exec("DELETE FROM projects WHERE id = ?", projectId); err != nil {
+	if _, err := config.database.conn.Exec("DELETE FROM projects WHERE id = ?", projectId); err != nil {
 		return fmt.Errorf("DeleteProject delete db project: %w", err)
 	}
 
@@ -328,7 +328,7 @@ func DeleteProjectFile(config Config, user, projectName, subdir, path string) er
 	projectPath := filepath.Join(config.ProjectDir, user, projectName)
 	filePath := filepath.Join(projectPath, subdir, path)
 
-	projectId, err := config.Database.GetProjectId(user, projectName)
+	projectId, err := config.database.GetProjectId(user, projectName)
 	if err != nil {
 		return fmt.Errorf("DeleteProjectFile get project id: %w", err)
 	}
@@ -350,7 +350,7 @@ func DeleteProjectFile(config Config, user, projectName, subdir, path string) er
 		if err := os.RemoveAll(filePath); err != nil {
 			return fmt.Errorf("DeleteProjectFile RemoveAll: %w", err)
 		}
-		if _, err := config.Database.conn.Exec("DELETE FROM files WHERE project_id = ? ANd subdir = ? AND path GLOB ?",
+		if _, err := config.database.conn.Exec("DELETE FROM files WHERE project_id = ? ANd subdir = ? AND path GLOB ?",
 			projectId,
 			subdir,
 			fmt.Sprintf("%s/*", path),
@@ -361,7 +361,7 @@ func DeleteProjectFile(config Config, user, projectName, subdir, path string) er
 		if err := os.Remove(filePath); err != nil {
 			return fmt.Errorf("DeleteProjectFile Remove: %w", err)
 		}
-		if _, err := config.Database.conn.Exec(
+		if _, err := config.database.conn.Exec(
 			"DELETE FROM files WHERE project_id = ? AND subdir = ? AND path = ?",
 			projectId,
 			subdir,
@@ -400,7 +400,7 @@ func CreateProjectFile(config Config, user, projectName, path string, reader io.
 	filePath := filepath.Join(projectPath, "src", path)
 	fileDir := filepath.Dir(filePath)
 
-	projectId, err := config.Database.GetProjectId(user, projectName)
+	projectId, err := config.database.GetProjectId(user, projectName)
 	if err != nil {
 		return fmt.Errorf("CreateProjectFile get project id: %w", err)
 	}
@@ -428,7 +428,7 @@ func CreateProjectFile(config Config, user, projectName, path string, reader io.
 
 	digest := fmt.Sprintf("%x", hasher.Sum(nil))
 
-	if _, err := config.Database.conn.Exec(
+	if _, err := config.database.conn.Exec(
 		"INSERT INTO files (project_id, subdir, path, size, sha256sum) VALUES (?, ?, ?, ?, ?)",
 		projectId,
 		"src",

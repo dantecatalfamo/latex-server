@@ -7,7 +7,7 @@ import (
 )
 
 func CreateUser(config Config, name string) error {
-	if _, err := config.Database.conn.Exec("INSERT INTO users (name) VALUES (?)", name); err != nil {
+	if _, err := config.database.conn.Exec("INSERT INTO users (name) VALUES (?)", name); err != nil {
 		return fmt.Errorf("CreateUser insert in db: %w", err)
 	}
 
@@ -20,7 +20,7 @@ func CreateUser(config Config, name string) error {
 }
 
 func DeleteUser(config Config, name string) error {
-	if _, err := config.Database.conn.Exec("DELETE FROM users WHERE name = ?", name); err != nil {
+	if _, err := config.database.conn.Exec("DELETE FROM users WHERE name = ?", name); err != nil {
 		return fmt.Errorf("DeleteUser delete from db: %w", err)
 	}
 

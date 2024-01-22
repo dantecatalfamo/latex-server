@@ -310,8 +310,8 @@ func PushProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConf
 	return size, nil
 }
 
-// func DeleteRemoteProjectFile
-// func DeleteLocalProjectFile
+// func DeleteRemoteProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot, subdir, filePath string) error {}
+// func DeleteLocalProjectFile(projectRoot, subdir, filePath string) error {}
 
 // func PushProjectFiles(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot, subdir string) error {}
 // func PullProjectFiles(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot, subdir string) error {}

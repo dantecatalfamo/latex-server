@@ -22,7 +22,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 	// List projects
 	router.Get("/{user}", func(w http.ResponseWriter, r *http.Request) {
 		user := chi.URLParam(r, "user")
-		infos, err := config.Database.ListUserProjects(user)
+		infos, err := config.database.ListUserProjects(user)
 		if err != nil {
 			http.Error(w, "No user", http.StatusBadRequest)
 			log.Printf("GET %s: %s", r.URL.Path, err)
@@ -60,7 +60,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 		user := chi.URLParam(r, "user")
 		project := chi.URLParam(r, "project")
 
-		projectInfo, err := config.Database.GetProjectInfo(user, project)
+		projectInfo, err := config.database.GetProjectInfo(user, project)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				http.Error(w, "404 page not found", http.StatusBadRequest)
@@ -148,7 +148,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 		user := chi.URLParam(r, "user")
 		project := chi.URLParam(r, "project")
 
-		files, err := config.Database.ListProjectFiles(user, project, "src")
+		files, err := config.database.ListProjectFiles(user, project, "src")
 		if err != nil {
 			http.Error(w, "Failed to list project files", http.StatusInternalServerError)
 			log.Printf("GET %s: %s", r.URL.Path, err)
@@ -229,7 +229,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 		user := chi.URLParam(r, "user")
 		project := chi.URLParam(r, "project")
 
-		files, err := config.Database.ListProjectFiles(user, project, "aux")
+		files, err := config.database.ListProjectFiles(user, project, "aux")
 		if err != nil {
 			http.Error(w, "Failed to list project files", http.StatusInternalServerError)
 			log.Printf("GET %s: %s", r.URL.Path, err)
@@ -266,7 +266,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 		user := chi.URLParam(r, "user")
 		project := chi.URLParam(r, "project")
 
-		files, err := config.Database.ListProjectFiles(user, project, "out")
+		files, err := config.database.ListProjectFiles(user, project, "out")
 		if err != nil {
 			http.Error(w, "Failed to list project files", http.StatusInternalServerError)
 			log.Printf("GET %s: %s", r.URL.Path, err)
