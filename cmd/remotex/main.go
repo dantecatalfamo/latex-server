@@ -30,18 +30,25 @@ func main() {
 			fmt.Println("No project path")
 			os.Exit(1)
 		}
+
+		if projectRoot, err := client.FindProjectRoot(); err == nil {
+			fmt.Printf("Already in a project: %s", projectRoot)
+			os.Exit(1)
+		}
+
 		projectName := cmd[1]
 		path := cmd[2]
+
+		if _, err := client.ReadProjectConfig(path); err == nil {
+			fmt.Println("Project already exists")
+		}
+
 		if err := client.NewProject(globalConfig, projectName, path); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
 	case "list":
-		projectRoot, err := client.FindProjectRoot()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+		projectRoot := findRoot()
 		for _, subdir := range []string{"src", "aux", "out"} {
 			files, err := client.ScanProjectFiles(projectRoot, subdir)
 			if err != nil {
@@ -54,8 +61,25 @@ func main() {
 				fmt.Printf("  %+v\n", file)
 			}
 		}
+	case "config":
+		projectRoot := findRoot()
+		projectConfig, err := client.ReadProjectConfig(projectRoot)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Printf("%+v\n", projectConfig)
 	default:
 		fmt.Println("Invalid command")
 		os.Exit(1)
 	}
+}
+
+func findRoot() string {
+	projectRoot, err := client.FindProjectRoot()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	return projectRoot
 }
