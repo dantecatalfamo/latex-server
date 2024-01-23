@@ -11,7 +11,8 @@ import (
 type Config struct {
 	ListenAddress string `json:"listenAddress"` // Where the server will listen
 	ProjectDir string `json:"projectDir"` // Root of all projects
-	MaxProjectBuildTime time.Duration `json:"maxProjectBuildTime"` // Max time a project can build
+	MaxProjectBuildTimeString string `json:"maxProjectBuildTime"` // Max time a project can build as a string
+	MaxProjectBuildTime time.Duration `json:"-"` // Max time a project can build
 	DatabasePath string `json:"databasePath"` // Location of the database
 	database *Database // Database object
 	MaxFileSize uint `json:"maxFileSize"` // Maximum upload size
@@ -31,6 +32,9 @@ func WriteNewConfig(path string) error {
 		MaxFileSize: 25 * 1024 * 1024,
 		MaxProjectBuildTime: 45 * time.Second,
 	}
+
+	config.MaxProjectBuildTimeString = config.MaxProjectBuildTime.String()
+
 	file, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("WriteEmptyConfig create file: %w", err)
@@ -55,6 +59,11 @@ func ReadAndInitializeConfig(path string) (Config, error) {
 
 	if err := json.NewDecoder(file).Decode(&config); err != nil {
 		return Config{}, fmt.Errorf("ReadAndInitializeConfig decode: %w", err)
+	}
+
+	config.MaxProjectBuildTime, err = time.ParseDuration(config.MaxProjectBuildTimeString)
+	if err != nil {
+		return Config{}, fmt.Errorf("ReadAndInitializeConfig parse max build time: %w", err)
 	}
 
 	if err := os.MkdirAll(config.ProjectDir, 0700); err != nil {

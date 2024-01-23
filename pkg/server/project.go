@@ -376,7 +376,7 @@ func DeleteProjectFile(config Config, user, projectName, subdir, path string) er
 	dirPath := filepath.Dir(filePath)
 	topDirPath := filepath.Join(projectPath, subdir)
 	for dirPath != topDirPath {
-		empty, err := isDirEmpty(dirPath)
+		empty, err := IsDirEmpty(dirPath)
 		if err != nil {
 			return fmt.Errorf("DeleteProjectFile checking empty dir: %w", err)
 		}
@@ -442,7 +442,7 @@ func CreateProjectFile(config Config, user, projectName, path string, reader io.
 	return nil
 }
 
-func isDirEmpty(name string) (bool, error) {
+func IsDirEmpty(name string) (bool, error) {
 	f, err := os.Open(name)
 	if err != nil {
 		return false, err

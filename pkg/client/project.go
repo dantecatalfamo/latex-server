@@ -238,7 +238,7 @@ func PullProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConf
 		return 0, fmt.Errorf("PullProjectFile join url: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", fileUrl, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fileUrl, nil)
 	if err != nil {
 		return 0, fmt.Errorf("PullProjectFile create request object: %w", err)
 	}
@@ -295,7 +295,7 @@ func PushProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConf
 	}
 	form.Close()
 
-	req, err := http.NewRequestWithContext(ctx, "POST", fileUrl, body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fileUrl, body)
 	req.Header.Add("Content-Type", form.FormDataContentType())
 
 	resp, err := http.DefaultClient.Do(req)
@@ -310,11 +310,129 @@ func PushProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConf
 	return size, nil
 }
 
-// func DeleteRemoteProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot, subdir, filePath string) error {}
-// func DeleteLocalProjectFile(projectRoot, subdir, filePath string) error {}
+func DeleteRemoteProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, subdir, filePath string) error {
+	// TODO auth
 
-// func PushProjectFiles(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot, subdir string) error {}
-// func PullProjectFiles(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot, subdir string) error {}
+	fileUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User, projectConfig.ProjectName, subdir, filePath)
+	if err != nil {
+		return fmt.Errorf("DeleteRemoteProjectFile join url: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, fileUrl, nil)
+	if err != nil {
+		return fmt.Errorf("DeleteRemoteProjectFile create request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("DeleteRemoteProjectFile do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("Unexpected status code: %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func DeleteLocalProjectFile(projectRoot, subdir, filePath string) error {
+	fullPath := filepath.Join(projectRoot, subdir, filePath)
+
+	if fullPath == "" || fullPath == "." || fullPath == "./" || fullPath == ".." {
+		return errors.New("path is just the top level directory")
+	}
+
+	if strings.Contains(fullPath, "../") {
+		return errors.New("path contains parent directory traversal")
+	}
+
+	stat, err := os.Stat(fullPath)
+	if err != nil {
+		return fmt.Errorf("DeleteLocalProjectFile stat: %w", err)
+	}
+
+	if stat.IsDir() {
+		if err := os.RemoveAll(fullPath); err != nil {
+			return fmt.Errorf("DeleteLocalProjectFile RemoveAll: %w", err)
+		}
+	} else {
+		if err := os.Remove(fullPath); err != nil {
+			return fmt.Errorf("DeleteLocalProjectFile Remove: %w", err)
+		}
+	}
+
+	// Traverse dirs upward and delete any empty dirs until we get to
+	// the top of the subdir, or we find a non-empty dir
+	dirPath := filepath.Dir(fullPath)
+	topDirPath := filepath.Join(projectRoot, subdir)
+	for dirPath != topDirPath {
+		empty, err := server.IsDirEmpty(dirPath)
+		if err != nil {
+			return fmt.Errorf("DeleteLocalProjectFile checking empty dir: %w", err)
+		}
+
+		if !empty {
+			break
+		}
+
+		if err := os.Remove(dirPath); err != nil {
+			return fmt.Errorf("DeleteLocalProjectFile clearing empty dirs: %w", err)
+		}
+
+		dirPath = filepath.Dir(dirPath)
+	}
+
+	return nil
+}
+
+func PushProjectFilesChanges(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot, subdir string) error {
+	localFiles, err := ScanProjectFiles(projectRoot, subdir)
+	if err != nil {
+		return fmt.Errorf("PushProjectFilesChanges scan local files: %w", err)
+	}
+	remoteFiles, err := FetchProjectFileList(globalConfig, projectConfig.ProjectName, subdir)
+	if err != nil {
+		return fmt.Errorf("PushProjectFilesChanges scan remote files: %w", err)
+	}
+	diff := DiffFileInfoLists(localFiles, remoteFiles)
+	for _, deleted := range diff.Removed {
+		if err := DeleteRemoteProjectFile(ctx, globalConfig, projectConfig, subdir, deleted.Path); err != nil {
+			return fmt.Errorf("PushProjectFilesChanges delete remote file %s: %w", deleted.Path, err)
+		}
+	}
+	for _, added := range diff.Added {
+		if _, err := PushProjectFile(ctx, globalConfig, projectConfig, projectRoot, subdir, added.Path); err != nil {
+			return fmt.Errorf("PushProjectFilesChanges upload file %s: %w", added.Path, err)
+		}
+	}
+
+	return nil
+}
+
+func PullProjectFilesChanges(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot, subdir string) error {
+	localFiles, err := ScanProjectFiles(projectRoot, subdir)
+	if err != nil {
+		return fmt.Errorf("PullProjectFilesChanges scan local files: %w", err)
+	}
+	remoteFiles, err := FetchProjectFileList(globalConfig, projectConfig.ProjectName, subdir)
+	if err != nil {
+		return fmt.Errorf("PullProjectFilesChanges scan remote files: %w", err)
+	}
+	diff := DiffFileInfoLists(remoteFiles, localFiles)
+	for _, deleted := range diff.Removed {
+		if err := DeleteLocalProjectFile(projectRoot, subdir, deleted.Path); err != nil {
+			return fmt.Errorf("PullProjectFilesChanges delete local file %s: %w", deleted.Path, err)
+		}
+	}
+	for _, added := range diff.Added {
+		if _, err := PullProjectFile(ctx, globalConfig, projectConfig, projectRoot, subdir, added.Path); err != nil {
+			return fmt.Errorf("PullProjectFilesChanges pull remote file %s: %w", added.Path, err)
+		}
+	}
+
+	return nil
+}
 
 type FileInfoMove struct {
 	From server.FileInfo
@@ -325,7 +443,6 @@ type FileInfoDiff struct {
 	Removed []server.FileInfo
 	Added []server.FileInfo
 	Same []server.FileInfo
-	Moved []FileInfoMove
 }
 
 func DiffFileInfoLists(original []server.FileInfo, other []server.FileInfo) FileInfoDiff {
@@ -362,3 +479,67 @@ outerAdded:
 		Same: same,
 	}
 }
+
+func BuildProject(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, buildOptions server.ProjectBuildOptions) (string, error) {
+	// TODO auth
+
+	buildUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User, projectConfig.ProjectName, "build")
+	if err != nil {
+		return "", fmt.Errorf("BuildProject join url: %w", err)
+	}
+
+	// XXX keep up to date with build options!
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, buildUrl, nil)
+	query := req.URL.Query()
+
+	if buildOptions.CleanBuild {
+		query.Add("cleanBuild", "true")
+	}
+
+	if buildOptions.Dependents {
+		query.Add("dependents", "true")
+	}
+
+	if buildOptions.Document != "" {
+		query.Add("document", buildOptions.Document)
+	}
+
+	if buildOptions.Engine != "" {
+		query.Add("engine", string(buildOptions.Engine))
+	}
+
+	if buildOptions.FileLineError {
+		query.Add("fileLineError", "true")
+	}
+
+	if buildOptions.Force {
+		query.Add("force", "true")
+	}
+
+	req.URL.RawQuery = query.Encode()
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("BuildProject http do: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusUnprocessableEntity {
+		// something wrong
+		return "", fmt.Errorf("BuildProject unexpected http status code: %d", resp.StatusCode)
+	}
+
+	var outBuf bytes.Buffer
+	if _, err := io.Copy(&outBuf, resp.Body); err != nil {
+		return "", fmt.Errorf("BuildProject copy buffer: %w", err)
+ 	}
+
+	if resp.StatusCode == http.StatusUnprocessableEntity {
+		return outBuf.String(), ErrBuildFailure
+	}
+
+	return outBuf.String(), nil
+}
+
+var ErrBuildFailure = errors.New("build failure")
