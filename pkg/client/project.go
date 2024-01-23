@@ -306,7 +306,7 @@ func PullProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConf
 func PushProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot, subdir, filePath string) (int64, error) {
 	// TODO auth
 
-	fileUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User, projectConfig.ProjectName, subdir, filePath)
+	subdirUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User, projectConfig.ProjectName, subdir)
 	if err != nil {
 		return 0, fmt.Errorf("PushProjectFile join url: %w", err)
 	}
@@ -328,9 +328,16 @@ func PushProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConf
 	if err != nil {
 		return 0, fmt.Errorf("PushProjectFile write form file: %w", err)
 	}
+	pathWriter, err := form.CreateFormField("path")
+	if err != nil {
+		return 0, fmt.Errorf("PushProjectFile create form path: %w", err)
+	}
+	if _, err := fmt.Fprint(pathWriter, filePath); err != nil {
+		return 0, fmt.Errorf("PushProjectFile write form path: %w", err)
+	}
 	form.Close()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fileUrl, body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, subdirUrl, body)
 	req.Header.Add("Content-Type", form.FormDataContentType())
 
 	resp, err := http.DefaultClient.Do(req)
