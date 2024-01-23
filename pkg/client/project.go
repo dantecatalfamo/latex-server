@@ -430,7 +430,7 @@ func PushProjectFilesChanges(ctx context.Context, globalConfig GlobalConfig, pro
 	if err != nil {
 		return fmt.Errorf("PushProjectFilesChanges scan remote files: %w", err)
 	}
-	diff := DiffFileInfoLists(localFiles, remoteFiles)
+	diff := DiffFileInfoLists(remoteFiles, localFiles)
 	for _, deleted := range diff.Removed {
 		if err := DeleteRemoteProjectFile(ctx, globalConfig, projectConfig, subdir, deleted.Path); err != nil {
 			return fmt.Errorf("PushProjectFilesChanges delete remote file %s: %w", deleted.Path, err)
@@ -454,7 +454,7 @@ func PullProjectFilesChanges(ctx context.Context, globalConfig GlobalConfig, pro
 	if err != nil {
 		return fmt.Errorf("PullProjectFilesChanges scan remote files: %w", err)
 	}
-	diff := DiffFileInfoLists(remoteFiles, localFiles)
+	diff := DiffFileInfoLists(localFiles, remoteFiles)
 	for _, deleted := range diff.Removed {
 		if err := DeleteLocalProjectFile(projectRoot, subdir, deleted.Path); err != nil {
 			return fmt.Errorf("PullProjectFilesChanges delete local file %s: %w", deleted.Path, err)
