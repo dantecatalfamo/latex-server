@@ -480,7 +480,7 @@ outerAdded:
 	}
 }
 
-func BuildProject(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, buildOptions server.ProjectBuildOptions) (string, error) {
+func BuildProject(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig) (string, error) {
 	// TODO auth
 
 	buildUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User, projectConfig.ProjectName, "build")
@@ -493,27 +493,27 @@ func BuildProject(ctx context.Context, globalConfig GlobalConfig, projectConfig 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, buildUrl, nil)
 	query := req.URL.Query()
 
-	if buildOptions.CleanBuild {
+	if projectConfig.BuildOptions.CleanBuild {
 		query.Add("cleanBuild", "true")
 	}
 
-	if buildOptions.Dependents {
+	if projectConfig.BuildOptions.Dependents {
 		query.Add("dependents", "true")
 	}
 
-	if buildOptions.Document != "" {
-		query.Add("document", buildOptions.Document)
+	if projectConfig.BuildOptions.Document != "" {
+		query.Add("document", projectConfig.BuildOptions.Document)
 	}
 
-	if buildOptions.Engine != "" {
-		query.Add("engine", string(buildOptions.Engine))
+	if projectConfig.BuildOptions.Engine != "" {
+		query.Add("engine", string(projectConfig.BuildOptions.Engine))
 	}
 
-	if buildOptions.FileLineError {
+	if projectConfig.BuildOptions.FileLineError {
 		query.Add("fileLineError", "true")
 	}
 
-	if buildOptions.Force {
+	if projectConfig.BuildOptions.Force {
 		query.Add("force", "true")
 	}
 
@@ -543,3 +543,29 @@ func BuildProject(ctx context.Context, globalConfig GlobalConfig, projectConfig 
 }
 
 var ErrBuildFailure = errors.New("build failure")
+
+func BuildAndSyncProject(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot string) (string, error) {
+	if err := PushProjectFilesChanges(ctx, globalConfig, projectConfig, projectRoot, "src"); err != nil {
+		return "", fmt.Errorf("BuildAndSyncProject push src: %w", err)
+	}
+
+	buildOut, err := BuildProject(ctx, globalConfig, projectConfig)
+	if err != nil {
+		if errors.Is(err, ErrBuildFailure) {
+			return buildOut, fmt.Errorf("BuildAndSyncProject build failure: %w", err)
+		}
+		return "", fmt.Errorf("BuildAndSyncProject build: %w", err)
+	}
+
+	if projectConfig.SaveAuxFiles {
+		if err := PullProjectFilesChanges(ctx, globalConfig, projectConfig, projectRoot, "aux"); err != nil {
+			return buildOut, fmt.Errorf("BuildAndSyncProject sync aux: %w", err)
+		}
+	}
+
+	if err := PullProjectFilesChanges(ctx, globalConfig, projectConfig, projectRoot, "out"); err != nil {
+		return buildOut, fmt.Errorf("BuildAndSyncPrject sync out: %w", err)
+	}
+
+	return buildOut, nil
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -79,12 +80,17 @@ func main() {
 		}
 	case "config":
 		projectRoot := findRoot()
-		projectConfig, err := client.ReadProjectConfig(projectRoot)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+		projectConfig := readProjectConfig(projectRoot)
 		fmt.Printf("%+v\n", projectConfig)
+	case "build":
+		projectRoot := findRoot()
+		projectConfig := readProjectConfig(projectRoot)
+		ctx := context.Background()
+		buildOut, err := client.BuildAndSyncProject(ctx, globalConfig, projectConfig, projectRoot)
+		if err != nil {
+			fmt.Println("Error:", err)
+		}
+		fmt.Println(buildOut)
 	default:
 		fmt.Println("Invalid command")
 		os.Exit(1)
