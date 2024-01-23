@@ -23,9 +23,9 @@ import (
 
 const ProjectConfigName = ".remotex"
 
-func NewProject(globalConfig GlobalConfig, projectName, projectRoot string) error {
+func NewProject(ctx context.Context, globalConfig GlobalConfig, projectName, projectRoot string) error {
 	// Should fetch project info before continuing
-	_, fetchErr := FetchProjectInfo(globalConfig, projectName)
+	_, fetchErr := FetchProjectInfo(ctx, globalConfig, projectName)
 	if fetchErr == nil {
 		return ErrProjectExists
 	}
@@ -35,6 +35,10 @@ func NewProject(globalConfig GlobalConfig, projectName, projectRoot string) erro
 	}
 
 	// Project does not exist
+
+	if err := CreateRemoteProject(ctx, globalConfig, projectName); err != nil {
+		return fmt.Errorf("NewProject create remote project: %w", err)
+	}
 
 	if err := os.MkdirAll(projectRoot, 0700); err != nil {
 		return fmt.Errorf("NewProject MkdirAll: %w", err)
@@ -49,6 +53,32 @@ func NewProject(globalConfig GlobalConfig, projectName, projectRoot string) erro
 
 	if err := WriteProjectConfig(projectRoot, projectConfig); err != nil {
 		return fmt.Errorf("NewProject write config: %w", err)
+	}
+
+	return nil
+}
+
+func CreateRemoteProject(ctx context.Context, globalConfig GlobalConfig, projectName string) error {
+	// TODO auth
+
+	userUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User)
+	if err != nil {
+		return fmt.Errorf("CreateRemoteProject join url: %w", err)
+	}
+
+	form := url.Values{}
+	form["project"] = []string{projectName}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, userUrl, strings.NewReader(form.Encode()))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("CreateRemoteProject do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("CreateRemoteProject unexpected status code %d", resp.StatusCode)
 	}
 
 	return nil
@@ -90,7 +120,7 @@ func WriteProjectConfig(projectRoot string, projectConfig ProjectConfig) error {
 	return nil
 }
 
-func FetchProjectInfo(globalConfig GlobalConfig, projectName string) (server.ProjectInfo, error) {
+func FetchProjectInfo(ctx context.Context, globalConfig GlobalConfig, projectName string) (server.ProjectInfo, error) {
 	// TODO incorporate auth at some point
 
 	projectUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User, projectName)
@@ -98,7 +128,12 @@ func FetchProjectInfo(globalConfig GlobalConfig, projectName string) (server.Pro
 		return server.ProjectInfo{}, fmt.Errorf("FetchProjectInfo path join: %w", err)
 	}
 
-	resp, err := http.Get(projectUrl)
+	res, err := http.NewRequestWithContext(ctx, http.MethodGet, projectUrl, nil)
+	if err != nil {
+		return server.ProjectInfo{}, fmt.Errorf("FetchProjectInfo create request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(res)
 	if err != nil {
 		return server.ProjectInfo{}, fmt.Errorf("FetchProjectInfo http get: %w", err)
 	}

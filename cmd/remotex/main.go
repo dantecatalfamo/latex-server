@@ -18,7 +18,6 @@ func main() {
 		User: "admin",
 		ServerBaseUrl: "http://localhost:3344",
 	}
-	_ = globalConfig
 
 	cmd := os.Args[1:]
 	switch cmd[0] {
@@ -45,7 +44,8 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := client.NewProject(globalConfig, projectName, path); err != nil {
+		ctx := context.Background()
+ 		if err := client.NewProject(ctx, globalConfig, projectName, path); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
