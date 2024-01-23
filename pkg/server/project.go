@@ -219,7 +219,7 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 	buildTime := time.Since(beginTime)
 	cancel() // Don't leak the context
 
-	buildOut = strings.ReplaceAll(buildOut, projectPath, "<project>")
+	buildOut = strings.ReplaceAll(buildOut, projectPath, "")
 
 	// If there is an issue with the build, but it's only with the
 	// child process (bad input, etc.) we return with the exit code at

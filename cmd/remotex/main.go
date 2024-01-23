@@ -90,7 +90,7 @@ func main() {
 		if err != nil {
 			fmt.Println("Error:", err)
 		}
-		fmt.Println(buildOut)
+		fmt.Print(buildOut)
 	default:
 		fmt.Println("Invalid command")
 		os.Exit(1)
