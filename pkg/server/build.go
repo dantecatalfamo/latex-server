@@ -40,7 +40,7 @@ func RunBuild(ctx context.Context, options BuildOptions) (string, error) {
 		// TODO re-add docker build mode
 		return "", errors.New("docker build mode not yet implemented")
 	}
-	return "", errors.New("invalid build mode")
+	return "", fmt.Errorf("invalid build mode \"%s\"", options.BuildMode)
 }
 
 func RunBuildNative(ctx context.Context, options BuildOptions) (string, error) {
