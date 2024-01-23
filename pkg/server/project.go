@@ -24,10 +24,6 @@ func NewProject(config Config, user string, name string) error {
 		return fmt.Errorf("NewProject: %w", err)
 	}
 
-	if _, err := config.database.conn.Exec("INSERT INTO projects (name, user_id) VALUES (?, ?)", name, userId); err != nil {
-		return fmt.Errorf("NewProject: %w", err)
-	}
-
 	projectPath := filepath.Join(config.ProjectDir, user, name)
 	if err := os.Mkdir(projectPath, 0700); err != nil {
 		return fmt.Errorf("NewProject Mkdir: %w", err)
@@ -38,6 +34,10 @@ func NewProject(config Config, user string, name string) error {
 		if err := os.Mkdir(subDirPath, 0700); err != nil {
 			return fmt.Errorf("NewProject subdir: %w", err)
 		}
+	}
+
+	if _, err := config.database.conn.Exec("INSERT INTO projects (name, user_id) VALUES (?, ?)", name, userId); err != nil {
+		return fmt.Errorf("NewProject: %w", err)
 	}
 
 	return nil
