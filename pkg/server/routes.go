@@ -129,6 +129,8 @@ func SetupRoutes(config Config, router *chi.Mux) {
 			var execErr *exec.ExitError
 			if errors.As(err, &execErr) {
 				http.Error(w, stdout, http.StatusUnprocessableEntity)
+			} else if errors.Is(err, ErrBuildInProgress) {
+				http.Error(w, "build in progress", http.StatusConflict)
 			} else {
 				http.Error(w, "Unable to build project", http.StatusInternalServerError)
 			}

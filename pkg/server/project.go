@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -159,6 +160,8 @@ type ProjectBuildOptions struct {
 	CleanBuild bool `json:"cleanBuild"` // Clean aux and out directories before starting the build
 }
 
+var ErrBuildInProgress = errors.New("build in progress")
+
 // BuildProject builds a project using latexmk using the options
 // provided. It retuens the stdout of latexmk.
 func BuildProject(ctx context.Context, config Config, user string, projectName string, options ProjectBuildOptions) (string, error) {
@@ -170,6 +173,13 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 	projectId, err := config.database.GetProjectId(user, projectName)
 	if err != nil {
 		return "", fmt.Errorf("BuildProject: %w", err)
+	}
+
+	// If there is currently a build running for this project, return
+	// an error instead of running two parallel builds
+	row := config.database.conn.QueryRowContext(ctx, "SELECT status FROM builds WHERE project_id = ? ORDER BY id DESC LIMIT 1", projectId)
+	if row.Err() != nil && !errors.Is(row.Err(), sql.ErrNoRows) {
+		return "", ErrBuildInProgress
 	}
 
 	if options.CleanBuild {

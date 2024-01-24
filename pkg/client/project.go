@@ -579,12 +579,15 @@ func BuildProject(ctx context.Context, globalConfig GlobalConfig, projectConfig 
 
 	if resp.StatusCode == http.StatusUnprocessableEntity {
 		return outBuf.String(), ErrBuildFailure
+	} else if resp.StatusCode == http.StatusConflict {
+		return "", ErrBuildInProgress
 	}
 
 	return outBuf.String(), nil
 }
 
 var ErrBuildFailure = errors.New("build failure")
+var ErrBuildInProgress = server.ErrBuildInProgress
 
 func BuildAndSyncProject(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot string) (string, error) {
 	if err := PushProjectFilesChanges(ctx, globalConfig, projectConfig, projectRoot, "src"); err != nil {
