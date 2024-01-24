@@ -46,7 +46,9 @@ func CreateUserToken(config Config, userName, tokenDescription string) (string, 
 	}
 
 	buffer := make([]byte, BearerTokenByteLength)
-	rand.Read(buffer)
+	if _, err := rand.Read(buffer); err != nil {
+		return "", fmt.Errorf("CreateUserToken read random: %w", err)
+	}
 
 	token := fmt.Sprintf("%x", buffer)
 
@@ -60,4 +62,24 @@ func CreateUserToken(config Config, userName, tokenDescription string) (string, 
 	}
 
 	return token, nil
+}
+
+func DeleteUserToken(config Config, token string) error {
+	if _, err := config.database.conn.Exec("DELETE FROM tokens WHERE token = ?", token); err != nil {
+		return fmt.Errorf("DeleteUserToken exec: %w", err)
+	}
+	return nil
+}
+
+func GetUserFromToken(config Config, token string) (string, error) {
+	row := config.database.conn.QueryRow("SELECT u.name FROM users u JOIN tokens t ON u.id = t.user_id WHERE t.token = ? LIMIT 1", token)
+	if row.Err() != nil {
+		return "", fmt.Errorf("GetUserIdFromToken query: %w", row.Err())
+	}
+	var user string
+	if err := row.Scan(&user); err != nil {
+		return "", fmt.Errorf("GetUserFromToken scan: %w", err)
+	}
+
+	return user, nil
 }

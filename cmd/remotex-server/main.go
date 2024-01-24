@@ -81,5 +81,14 @@ func main() {
 			log.Fatal(err)
 		}
 		fmt.Printf("Token: %s\n", token)
+	case "tokendel":
+		if len(cmd) < 2 {
+			return
+		}
+		token := cmd[1]
+		if err := server.DeleteUserToken(config, token); err != nil {
+			log.Fatal(err)
+		}
+		log.Println("Token deleted")
 	}
 }
