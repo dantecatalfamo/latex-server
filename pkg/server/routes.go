@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -124,7 +123,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 
 		log.Printf("Build started: %s/%s %+v", user, project, options)
 
-		stdout, err := BuildProject(context.Background(), config, user, project, options)
+		stdout, err := BuildProject(r.Context(), config, user, project, options)
 		if err != nil {
 			// If the error was the child process, return the output
 			var execErr *exec.ExitError
