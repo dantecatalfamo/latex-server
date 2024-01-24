@@ -64,6 +64,7 @@ func CreateUserToken(config Config, userName, tokenDescription string) (string, 
 	return token, nil
 }
 
+// DeleteUserToken deletes a token from the database
 func DeleteUserToken(config Config, token string) error {
 	if _, err := config.database.conn.Exec("DELETE FROM tokens WHERE token = ?", token); err != nil {
 		return fmt.Errorf("DeleteUserToken exec: %w", err)
@@ -71,6 +72,7 @@ func DeleteUserToken(config Config, token string) error {
 	return nil
 }
 
+// GetUserFromToken returns the user name that a token is associated with
 func GetUserFromToken(config Config, token string) (string, error) {
 	row := config.database.conn.QueryRow("SELECT u.name FROM users u JOIN tokens t ON u.id = t.user_id WHERE t.token = ? LIMIT 1", token)
 	if row.Err() != nil {
