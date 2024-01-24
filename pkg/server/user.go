@@ -1,10 +1,15 @@
 package server
 
 import (
+	"bytes"
+	"crypto/rand"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 )
+
+const BearerTokenByteLength = 32
 
 func CreateUser(config Config, name string) error {
 	if _, err := config.database.conn.Exec("INSERT INTO users (name) VALUES (?)", name); err != nil {
@@ -30,4 +35,30 @@ func DeleteUser(config Config, name string) error {
 	}
 
 	return nil
+}
+
+func CreateUserToken(config Config, userName, tokenDescription string) (string, error) {
+	userId, err := config.database.GetUserId(userName)
+	if err != nil {
+		return "", fmt.Errorf("CreateUserToken get user id: %w", err)
+	}
+
+	var buffer [BearerTokenByteLength]byte
+	writer := bytes.NewBuffer(buffer[:])
+	if _, err := io.Copy(writer, rand.Reader); err != nil {
+		return "", fmt.Errorf("CreateUserToken read rand: %w", err)
+	}
+
+	token := fmt.Sprintf("%x", buffer)
+
+	if _, err := config.database.conn.Exec(
+		"INSERT INTO tokens (user_id, token, description) VALUES (?, ?, ?)",
+		userId,
+		token,
+		tokenDescription,
+	); err != nil {
+		return "", fmt.Errorf("CreateUserToken insert db: %w", err)
+	}
+
+	return token, nil
 }
