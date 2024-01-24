@@ -49,8 +49,8 @@ type FileInfo struct {
 	Sha256Sum string  `json:"sha256sum"`
 }
 
-// ScanProjectFiles deletes the file list from a project's subdir and
-// re-scans them
+// ScanProjectFiles deletes the db file list from a project's subdir
+// and re-scans and re-inserts them
 func ScanProjectFiles(config Config, user string, projectName string, subdir string) error {
 	projectPath := filepath.Join(config.ProjectDir, user, projectName)
 	filesPath := filepath.Join(projectPath, subdir)
@@ -280,6 +280,8 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 	return buildOut, nil
 }
 
+// DeleteProject deletes a project's root directiry and removes it
+// from the database
 func DeleteProject(config Config, user string, projectName string) error {
 	projectPath := filepath.Join(config.ProjectDir, user, projectName)
 
@@ -299,6 +301,8 @@ func DeleteProject(config Config, user string, projectName string) error {
 	return nil
 }
 
+// ReadProjectFile opens a file from a  project and returns an
+// io.ReadderCloser for it. Caller is responsible for closing the ReaderCloser
 func ReadProjectFile(config Config, user, projectName, subdir, path string) (io.ReadCloser, error) {
 	if strings.Contains(path, "../") {
 		return nil, errors.New("path contains parent directory traversal")
@@ -324,6 +328,10 @@ func ReadProjectFile(config Config, user, projectName, subdir, path string) (io.
 	return file, nil
 }
 
+// DeleteProjectFile deletes a file within a project and removes it
+// from the file list in the database. If it is the only file inside
+// of a directory, it also deletes the containing directory, and
+// continues all the way up until it reaches the project subdir.
 func DeleteProjectFile(config Config, user, projectName, subdir, path string) error {
 	projectPath := filepath.Join(config.ProjectDir, user, projectName)
 	filePath := filepath.Join(projectPath, subdir, path)
@@ -395,6 +403,9 @@ func DeleteProjectFile(config Config, user, projectName, subdir, path string) er
 	return nil
 }
 
+// CreateProjectFile creates a file inside a project subdir and
+// populates it with the contents of the io.Reader, then adds it to
+// the db file list.
 func CreateProjectFile(config Config, user, projectName, path string, reader io.Reader) error {
 	projectPath := filepath.Join(config.ProjectDir, user, projectName)
 	filePath := filepath.Join(projectPath, "src", path)
@@ -442,6 +453,7 @@ func CreateProjectFile(config Config, user, projectName, path string, reader io.
 	return nil
 }
 
+// IsDirEmpty returns true if a directory is empty.
 func IsDirEmpty(name string) (bool, error) {
 	f, err := os.Open(name)
 	if err != nil {

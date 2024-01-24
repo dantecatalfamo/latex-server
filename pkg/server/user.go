@@ -11,6 +11,7 @@ import (
 
 const BearerTokenByteLength = 32
 
+// CreateUser adds a user to the database and creates their directory
 func CreateUser(config Config, name string) error {
 	if _, err := config.database.conn.Exec("INSERT INTO users (name) VALUES (?)", name); err != nil {
 		return fmt.Errorf("CreateUser insert in db: %w", err)
@@ -24,6 +25,7 @@ func CreateUser(config Config, name string) error {
 	return nil
 }
 
+// DeleteUser deletes a user from the database and recursively removes their directory
 func DeleteUser(config Config, name string) error {
 	if _, err := config.database.conn.Exec("DELETE FROM users WHERE name = ?", name); err != nil {
 		return fmt.Errorf("DeleteUser delete from db: %w", err)
@@ -37,6 +39,8 @@ func DeleteUser(config Config, name string) error {
 	return nil
 }
 
+// CreateUserToken generates a new random token for a user and stores
+// it in the database. It retuens the newly generated token
 func CreateUserToken(config Config, userName, tokenDescription string) (string, error) {
 	userId, err := config.database.GetUserId(userName)
 	if err != nil {

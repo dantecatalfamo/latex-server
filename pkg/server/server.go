@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
+// RunServer starts a server using the given configuration and listens
 func RunServer(config Config) error {
 	mux := chi.NewMux()
 	mux.Use(middleware.Logger)
