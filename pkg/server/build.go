@@ -31,6 +31,7 @@ type BuildOptions struct {
 	Dependents bool
 	BuildMode BuildMode
 	AllowLatexmkrc bool
+	AllowLuaTex bool
 }
 
 func RunBuild(ctx context.Context, options BuildOptions) (string, error) {
@@ -49,7 +50,11 @@ func RunBuildNative(ctx context.Context, options BuildOptions) (string, error) {
 	case EnginePDF:
 		engineArg = "-pdf"
 	case EngineLua:
-		engineArg = "-pdflua"
+		if options.AllowLuaTex {
+			engineArg = "-pdflua"
+		} else {
+			engineArg = "-pdf"
+		}
 	case EngineXeTeX:
 		engineArg = "-pdfxe"
 	default:

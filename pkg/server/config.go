@@ -18,6 +18,7 @@ type Config struct {
 	MaxFileSize uint `json:"maxFileSize"` // Maximum upload size
 	BuildMode BuildMode `json:"buildMode"` // Select between native or containerized builds
 	AllowLatexmkrc bool `json:"allowLatexmkrc"` // Allow auto-reading latexmkrc files
+	AllowLuaTex bool `json:"allowLuaTeX"` // Allow luaTex, possible security issue for some
 }
 
 type BuildMode string

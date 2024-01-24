@@ -215,6 +215,7 @@ func BuildProject(ctx context.Context, config Config, user string, projectName s
 		Dependents: options.Dependents,
 		AllowLatexmkrc: config.AllowLatexmkrc,
 		BuildMode: config.BuildMode,
+		AllowLuaTex: config.AllowLuaTex,
 	})
 	buildTime := time.Since(beginTime)
 	cancel() // Don't leak the context
