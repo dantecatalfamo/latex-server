@@ -1,10 +1,8 @@
 package server
 
 import (
-	"bytes"
 	"crypto/rand"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 )
@@ -47,11 +45,8 @@ func CreateUserToken(config Config, userName, tokenDescription string) (string, 
 		return "", fmt.Errorf("CreateUserToken get user id: %w", err)
 	}
 
-	var buffer [BearerTokenByteLength]byte
-	writer := bytes.NewBuffer(buffer[:])
-	if _, err := io.Copy(writer, rand.Reader); err != nil {
-		return "", fmt.Errorf("CreateUserToken read rand: %w", err)
-	}
+	buffer := make([]byte, BearerTokenByteLength)
+	rand.Read(buffer)
 
 	token := fmt.Sprintf("%x", buffer)
 

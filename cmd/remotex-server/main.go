@@ -70,5 +70,16 @@ func main() {
 			log.Fatal(err)
 		}
 		log.Printf("Deleted user %s", user)
+	case "tokenadd":
+		if len(cmd) < 3 {
+			return
+		}
+		user := cmd[1]
+		desc := cmd[2]
+		token, err := server.CreateUserToken(config, user, desc)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("Token: %s\n", token)
 	}
 }

@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS tokens (
   user_id INTEGER NOT NULL,
-  token TEXT NOT NULL,
+  token TEXT NOT NULL UNIQUE,
   description TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now', 'utc')),
 
