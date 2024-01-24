@@ -56,8 +56,6 @@ func ScanProjectFiles(config Config, user string, projectName string, subdir str
 	filesPath := filepath.Join(projectPath, subdir)
 	removePrefix := filesPath + string(filepath.Separator)
 
-	log.Printf("Scanning %s/%s/%s", user, projectName, subdir)
-
 	projectId, err := config.database.GetProjectId(user, projectName)
 	if err != nil {
 		return fmt.Errorf("ScanProjectFiles: %w", err)
