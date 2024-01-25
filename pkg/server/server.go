@@ -42,6 +42,5 @@ func TokenAuthMiddleware(config Config) func(http.Handler) http.Handler {
 			ctx := context.WithValue(r.Context(), ContextAuthedUserKey, authedUser)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
-
 	}
 }

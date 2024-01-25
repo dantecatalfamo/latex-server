@@ -274,15 +274,13 @@ func (db *Database) ListProjectFiles(user string, projectName string, subdir str
 
 
 func (db *Database) GetProjectId(user string, project string) (int, error) {
-	userId, err := db.GetUserId(user)
-	if err != nil {
-		return 0, fmt.Errorf("Database.GetProjectId: %w", err)
-	}
-
-	// TODO This should be a join instead of two separate queries
-	row := db.conn.QueryRow("SELECT id FROM projects WHERE user_id = ? AND name = ?", userId, project)
+	row := db.conn.QueryRow(
+		"SELECT p.id FROM projects p JOIN users u ON p.user_id = u.id WHERE u.name = ? AND p.name = ?",
+		user,
+		project,
+	)
 	if row.Err() != nil {
-		return 0, fmt.Errorf("Database.GetProjectId query: %w", err)
+		return 0, fmt.Errorf("Database.GetProjectId query: %w", row.Err())
 	}
 
 	var id int
