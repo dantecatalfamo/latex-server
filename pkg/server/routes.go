@@ -11,6 +11,7 @@ func SetupRoutes(config Config, router *chi.Mux) {
 	// TODO Authenticate routes, check if public, etc.
 	// List projects
 	controller := NewController(config)
+	router.Use(TokenAuthMiddleware(config))
 	router.Get("/{user}", controller.ListProjects)
 	// Create a new project
 	router.Post("/{user}", controller.CreateProject)
