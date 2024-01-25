@@ -272,7 +272,7 @@ func (db *Database) ListProjectFiles(user string, projectName string, subdir str
 	return fileInfo, nil
 }
 
-
+// GetProjectId returns the id of a project under a user
 func (db *Database) GetProjectId(user string, project string) (int, error) {
 	row := db.conn.QueryRow(
 		"SELECT p.id FROM projects p JOIN users u ON p.user_id = u.id WHERE u.name = ? AND p.name = ?",
@@ -291,6 +291,7 @@ func (db *Database) GetProjectId(user string, project string) (int, error) {
 	return id, nil
 }
 
+// GetUserId returns the id of the user with a given name
 func (db *Database) GetUserId(user string) (int, error) {
 	row := db.conn.QueryRow("SELECT id FROM users WHERE name = ?", user)
 	if row.Err() != nil {
@@ -303,4 +304,22 @@ func (db *Database) GetUserId(user string) (int, error) {
 	}
 
 	return id, nil
+}
+
+// SetProjectPublic sets a project's public flag
+func (db *Database) SetProjectPublic(user, project string, public bool) error {
+	var pubStr string
+	if public {
+		pubStr = "true"
+	} else {
+		pubStr = "false"
+	}
+	projectId, err := db.GetProjectId(user, project)
+	if err != nil {
+		return fmt.Errorf("Database.SetProjectPublic get project id: %w", err)
+	}
+	if _, err := db.conn.Exec("UPDATE projects SET public = ? WHERE id = ?", pubStr, projectId); err != nil {
+		return fmt.Errorf("Database.SetProjectPublic db exec: %w", err)
+	}
+	return nil
 }
