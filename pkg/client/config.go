@@ -22,8 +22,10 @@ type ProjectConfig struct {
 	SaveAuxFiles bool `json:"saveAuxFiles"`
 }
 
+const GlobalConfigRelativePath = "remotex/remotex.json"
+
 func ReadGlobalConfig() (GlobalConfig, error) {
-	configPath, err := xdg.ConfigFile("remotex/remotex.json")
+	configPath, err := xdg.ConfigFile(GlobalConfigRelativePath)
 	if err != nil {
 		return GlobalConfig{}, fmt.Errorf("ReadGlobalConfig create path: %w", err)
 	}
@@ -42,7 +44,7 @@ func ReadGlobalConfig() (GlobalConfig, error) {
 }
 
 func WriteGlobalConfig(globalConfig GlobalConfig) error {
-	configPath, err := xdg.ConfigFile("remotex/remotex.json")
+	configPath, err := xdg.ConfigFile(GlobalConfigRelativePath)
 	if err != nil {
 		return fmt.Errorf("WriteGlobalConfig create path: %w", err)
 	}

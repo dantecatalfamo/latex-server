@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -14,10 +15,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	globalConfig := client.GlobalConfig{
-		User: "admin",
-		ServerBaseUrl: "http://localhost:3344",
+	globalConfig, err := client.ReadGlobalConfig()
+	if err != nil && !errors.Is(err, os.ErrNotExist){
+		fmt.Println(err)
+		os.Exit(1)
 	}
+
+	if err != nil && errors.Is(err, os.ErrNotExist) {
+		if err := client.WriteGlobalConfig(client.GlobalConfig{}); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Println("Wrote new empty global config")
+		return
+	}
+
+	validateGlobalConfig(globalConfig)
 
 	cmd := os.Args[1:]
 	switch cmd[0] {
@@ -113,4 +126,21 @@ func readProjectConfig(root string) client.ProjectConfig {
 		os.Exit(1)
 	}
 	return config
+}
+
+func validateGlobalConfig(globalConfig client.GlobalConfig) {
+	if globalConfig.ServerBaseUrl == "" {
+		fmt.Println("Error: config serverBaseUrl empty")
+		os.Exit(1)
+	}
+
+	if globalConfig.User == "" {
+		fmt.Println("Error: config user empty")
+		os.Exit(1)
+	}
+
+	if globalConfig.Token == "" {
+		fmt.Println("Error: config token empty")
+		os.Exit(1)
+	}
 }
