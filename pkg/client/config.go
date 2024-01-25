@@ -13,6 +13,7 @@ import (
 type GlobalConfig struct {
 	User string `json:"user"`
 	ServerBaseUrl string `json:"serverBaseUrl"`
+	Token string `json:"token"`
 }
 
 type ProjectConfig struct {
