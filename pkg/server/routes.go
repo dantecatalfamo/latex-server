@@ -1,14 +1,10 @@
 package server
 
 import (
-	"database/sql"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"os/exec"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -19,150 +15,18 @@ func SetupRoutes(config Config, router *chi.Mux) {
 	//       /user/project/builds/(id|latest) (build info)
 	// TODO Authenticate routes, check if public, etc.
 	// List projects
-	router.Get("/{user}", func(w http.ResponseWriter, r *http.Request) {
-		user := chi.URLParam(r, "user")
-		infos, err := config.database.ListUserProjects(user)
-		if err != nil {
-			http.Error(w, "No user", http.StatusBadRequest)
-			log.Printf("GET %s: %s", r.URL.Path, err)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		err = json.NewEncoder(w).Encode(infos)
-		if err != nil {
-			http.Error(w, "Failed to serialize json", http.StatusInternalServerError)
-			log.Printf("GET %s: %s", r.URL.Path, err)
-			return
-		}
-	})
+	controller := NewController(config)
+	router.Get("/{user}", controller.ListProjects)
 	// Create a new project
-	router.Post("/{user}", func(w http.ResponseWriter, r *http.Request) {
-		user := chi.URLParam(r, "user")
-		r.ParseForm()
-		project := r.FormValue("project")
-		if project == "" {
-			http.Error(w, "Missing project name", http.StatusBadRequest)
-			return
-		}
-		if err := NewProject(config, user, project); err != nil {
-			http.Error(w, "Failed to create new project", http.StatusInternalServerError)
-			log.Printf("POST /%s: %s", user, err)
-			return
-		}
-
-		log.Printf("New project: %s/%s", user, project)
-		// w.Header().Set("Content-Type", "application/json")
-	})
+	router.Post("/{user}", controller.NewProject)
 	// Get project information
-	router.Get("/{user}/{project}", func(w http.ResponseWriter, r *http.Request) {
-		user := chi.URLParam(r, "user")
-		project := chi.URLParam(r, "project")
-
-		projectInfo, err := config.database.GetProjectInfo(user, project)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				http.Error(w, "404 page not found", http.StatusNotFound)
-			} else {
-				http.Error(w, "Failed to retrieve project information", http.StatusInternalServerError)
-				log.Printf("GET /%s/%s: %s", user, project, err)
-			}
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		err = json.NewEncoder(w).Encode(projectInfo)
-		if err != nil {
-			http.Error(w, "Failed to serialize json", http.StatusInternalServerError)
-			log.Printf("GET /%s/%s: %s", user, project, err)
-			return
-		}
-	})
+	router.Get("/{user}/{project}", controller.ProjectInfo)
 	// Delete a project
-	router.Delete("/{user}/{project}", func(w http.ResponseWriter, r *http.Request) {
-		user := chi.URLParam(r, "user")
-		project := chi.URLParam(r, "project")
-
-		if err := DeleteProject(config, user, project); err != nil {
-			http.Error(w, "Unable to delete project", http.StatusInternalServerError)
-			log.Printf("DELETE %s: %s", r.URL.Path, err)
-			return
-		}
-
-		log.Printf("Deleted project: %s/%s", user, project)
-	})
+	router.Delete("/{user}/{project}", controller.DeleteProject)
 	// Run project build
-	router.Post("/{user}/{project}/build", func(w http.ResponseWriter, r *http.Request) {
-		user := chi.URLParam(r, "user")
-		project := chi.URLParam(r, "project")
-
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, "Unable to process request", http.StatusBadRequest)
-			log.Printf("POST %s: %s", r.URL.Path, err)
-			return
-		}
-
-		var engine Engine
-		switch r.Form.Get("engine") {
-		case string(EnginePDF):
-			engine = EnginePDF
-		case string(EngineLua):
-			engine = EngineLua
-		case string(EngineXeTeX):
-			engine = EngineXeTeX
-		}
-
-		options := ProjectBuildOptions{
-			CleanBuild: r.Form.Has("cleanBuild"),
-			Dependents: r.Form.Has("dependents"),
-			Document: r.Form.Get("document"),
-			Engine: engine,
-			FileLineError: r.Form.Has("fileLineError"),
-			Force: r.Form.Has("force"),
-		}
-
-		log.Printf("Build started: %s/%s %+v", user, project, options)
-
-		stdout, err := BuildProject(r.Context(), config, user, project, options)
-		if err != nil {
-			// If the error was the child process, return the output
-			var execErr *exec.ExitError
-			if errors.As(err, &execErr) {
-				http.Error(w, stdout, http.StatusUnprocessableEntity)
-			} else if errors.Is(err, ErrBuildInProgress) {
-				http.Error(w, "Build in progress", http.StatusConflict)
-			} else {
-				http.Error(w, "Unable to build project", http.StatusInternalServerError)
-			}
-			log.Printf("POST %s: %s", r.URL.Path, err)
-			return
-		}
-
-		log.Printf("Build finished: %s/%s", user, project)
-
-		if _, err := fmt.Fprintln(w, stdout); err != nil {
-			log.Printf("POST %s: %s", r.URL.Path, err)
-		}
-	})
+	router.Post("/{user}/{project}/build", controller.BuildProject)
 	// Get list of project source files
-	router.Get("/{user}/{project}/src", func(w http.ResponseWriter, r *http.Request) {
-		user := chi.URLParam(r, "user")
-		project := chi.URLParam(r, "project")
-
-		files, err := config.database.ListProjectFiles(user, project, "src")
-		if err != nil {
-			http.Error(w, "Failed to list project files", http.StatusInternalServerError)
-			log.Printf("GET %s: %s", r.URL.Path, err)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		err = json.NewEncoder(w).Encode(files)
-		if err != nil {
-			http.Error(w, "Failed to serialize json", http.StatusInternalServerError)
-			log.Printf("GET %s: %s", r.URL.Path, err)
-		}
-	})
+	router.Get("/{user}/{project}/src", controller.ListProjectSrc)
 	// Create or update project source file
 	router.Post("/{user}/{project}/src", func(w http.ResponseWriter, r *http.Request) {
 		user := chi.URLParam(r, "user")
