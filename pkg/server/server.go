@@ -10,6 +10,7 @@ import (
 // RunServer starts a server using the given configuration and listens
 func RunServer(config Config) error {
 	mux := chi.NewMux()
+	mux.Use(middleware.RequestID)
 	mux.Use(middleware.RealIP)
 	mux.Use(middleware.Logger)
 	SetupRoutes(config, mux)
