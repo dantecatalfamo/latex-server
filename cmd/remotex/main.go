@@ -30,9 +30,58 @@ func main() {
 		return
 	}
 
+	cmd := os.Args[1:]
+
+	if cmd[0] == "global" {
+		if len(cmd) < 2 {
+			fmt.Println("Please specify a config option (serverBaseUrl, user, token)")
+			os.Exit(1)
+		}
+		saveConfig := false
+		switch cmd[1] {
+		case "serverBaseUrl":
+			if len(cmd) == 2 {
+				fmt.Println(globalConfig.ServerBaseUrl)
+			} else if len(cmd) == 3 {
+				globalConfig.ServerBaseUrl = cmd[2]
+				saveConfig = true
+			} else {
+				fmt.Println("Too many arguments")
+				os.Exit(1)
+			}
+		case "user":
+			if len(cmd) == 2 {
+				fmt.Println(globalConfig.User)
+			} else if len(cmd) == 3 {
+				globalConfig.User = cmd[2]
+				saveConfig = true
+			} else {
+				fmt.Println("Too many arguments")
+				os.Exit(1)
+			}
+		case "token":
+			if len(cmd) == 2 {
+				fmt.Println(globalConfig.Token)
+			} else if len(cmd) == 3 {
+				globalConfig.Token= cmd[2]
+				saveConfig = true
+			} else {
+				fmt.Println("Too many arguments")
+				os.Exit(1)
+			}
+		}
+		if saveConfig {
+			if err := client.WriteGlobalConfig(globalConfig); err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+		}
+
+		return
+	}
+
 	validateGlobalConfig(globalConfig)
 
-	cmd := os.Args[1:]
 	switch cmd[0] {
 	case "init":
 		if len(cmd) < 2 {
