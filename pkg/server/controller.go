@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os/exec"
@@ -20,7 +21,7 @@ func NewController(config Config) Controller {
 	return Controller{ config: config }
 }
 
-func (c *Controller) ListProjects (w http.ResponseWriter, r *http.Request) {
+func (c *Controller) ListProjects(w http.ResponseWriter, r *http.Request) {
 	user := chi.URLParam(r, "user")
 	infos, err := c.config.database.ListUserProjects(user)
 	if err != nil {
@@ -38,7 +39,7 @@ func (c *Controller) ListProjects (w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (c *Controller) NewProject (w http.ResponseWriter, r *http.Request) {
+func (c *Controller) CreateProject(w http.ResponseWriter, r *http.Request) {
 	user := chi.URLParam(r, "user")
 	r.ParseForm()
 	project := r.FormValue("project")
@@ -55,7 +56,7 @@ func (c *Controller) NewProject (w http.ResponseWriter, r *http.Request) {
 	log.Printf("New project: %s/%s", user, project)
 }
 
-func (c *Controller) ProjectInfo (w http.ResponseWriter, r *http.Request) {
+func (c *Controller) ProjectInfo(w http.ResponseWriter, r *http.Request) {
 	user := chi.URLParam(r, "user")
 	project := chi.URLParam(r, "project")
 
@@ -79,7 +80,7 @@ func (c *Controller) ProjectInfo (w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (c *Controller) DeleteProject (w http.ResponseWriter, r *http.Request) {
+func (c *Controller) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	user := chi.URLParam(r, "user")
 	project := chi.URLParam(r, "project")
 
@@ -92,7 +93,7 @@ func (c *Controller) DeleteProject (w http.ResponseWriter, r *http.Request) {
 	log.Printf("Deleted project: %s/%s", user, project)
 }
 
-func (c *Controller) BuildProject (w http.ResponseWriter, r *http.Request) {
+func (c *Controller) BuildProject(w http.ResponseWriter, r *http.Request) {
 	user := chi.URLParam(r, "user")
 	project := chi.URLParam(r, "project")
 
@@ -145,7 +146,7 @@ func (c *Controller) BuildProject (w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (c *Controller) ListProjectSrc (w http.ResponseWriter, r *http.Request) {
+func (c *Controller) ListSrcFiles(w http.ResponseWriter, r *http.Request) {
 	user := chi.URLParam(r, "user")
 	project := chi.URLParam(r, "project")
 
@@ -161,5 +162,141 @@ func (c *Controller) ListProjectSrc (w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Failed to serialize json", http.StatusInternalServerError)
 		log.Printf("GET %s: %s", r.URL.Path, err)
+	}
+}
+
+func (c *Controller) CreateSrcFile(w http.ResponseWriter, r *http.Request) {
+	user := chi.URLParam(r, "user")
+	project := chi.URLParam(r, "project")
+
+	if err := r.ParseMultipartForm(int64(c.config.MaxFileSize)); err != nil {
+		http.Error(w, "Unable to parse form", http.StatusBadRequest)
+		log.Printf("%s %s: %s", r.Method, r.URL.Path, err)
+		return
+	}
+
+	file, fileHeader, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "Unable to read form file", http.StatusBadRequest)
+		log.Printf("%s %s: %s", r.Method, r.URL.Path, err)
+		return
+	}
+	_ = fileHeader
+
+	path := r.FormValue("path")
+	if path == "" {
+		http.Error(w, "Unable to read path", http.StatusBadRequest)
+		log.Printf("%s %s: %s", r.Method, r.URL.Path, "no file path")
+		return
+	}
+
+	if err := CreateProjectFile(c.config, user, project, path, file); err != nil {
+		http.Error(w, "Unable to create file", http.StatusInternalServerError)
+		log.Printf("%s %s: %s", r.Method, r.URL.Path, err)
+		return
+	}
+}
+
+func (c *Controller) ReadSrcFile(w http.ResponseWriter, r *http.Request) {
+	user := chi.URLParam(r, "user")
+	project := chi.URLParam(r, "project")
+	path := chi.URLParam(r, "*")
+
+	file, err := ReadProjectFile(c.config, user, project, "src", path)
+	if err != nil {
+		http.Error(w, "Invalid file path", http.StatusBadRequest)
+		log.Printf("%s %s: %s", r.Method, r.URL.Path, err)
+		return
+	}
+	defer file.Close()
+
+	if _, err := io.Copy(w, file); err != nil {
+		log.Printf("%s %s copy: %s", r.Method, r.URL.Path, err)
+	}
+}
+
+func (c *Controller) DeleteSrcFile(w http.ResponseWriter, r *http.Request) {
+	user := chi.URLParam(r, "user")
+	project := chi.URLParam(r, "project")
+	path := chi.URLParam(r, "*")
+
+	if err := DeleteProjectFile(c.config, user, project, "src", path); err != nil {
+		http.Error(w, "Failed to delete file", http.StatusBadRequest)
+		log.Printf("%s %s: %s", r.Method, r.URL.Path, err)
+		return
+	}
+}
+
+func (c *Controller) ListAuxFiles(w http.ResponseWriter, r *http.Request) {
+	user := chi.URLParam(r, "user")
+	project := chi.URLParam(r, "project")
+
+	files, err := c.config.database.ListProjectFiles(user, project, "aux")
+	if err != nil {
+		http.Error(w, "Failed to list project files", http.StatusInternalServerError)
+		log.Printf("GET %s: %s", r.URL.Path, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(files)
+	if err != nil {
+		http.Error(w, "Failed to serialize json", http.StatusInternalServerError)
+		log.Printf("GET %s: %s", r.URL.Path, err)
+	}
+}
+
+func (c *Controller) ReadAuxFile(w http.ResponseWriter, r *http.Request) {
+	user := chi.URLParam(r, "user")
+	project := chi.URLParam(r, "project")
+	path := chi.URLParam(r, "*")
+
+	file, err := ReadProjectFile(c.config, user, project, "aux", path)
+	if err != nil {
+		http.Error(w, "Invalid file path", http.StatusBadRequest)
+		log.Printf("%s %s: %s", r.Method, r.URL.Path, err)
+		return
+	}
+	defer file.Close()
+
+	if _, err := io.Copy(w, file); err != nil {
+		log.Printf("%s %s copy: %s", r.Method, r.URL.Path, err)
+	}
+}
+
+func (c *Controller) ListOutFiles(w http.ResponseWriter, r *http.Request) {
+	user := chi.URLParam(r, "user")
+	project := chi.URLParam(r, "project")
+
+	files, err := c.config.database.ListProjectFiles(user, project, "out")
+	if err != nil {
+		http.Error(w, "Failed to list project files", http.StatusInternalServerError)
+		log.Printf("GET %s: %s", r.URL.Path, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(files)
+	if err != nil {
+		http.Error(w, "Failed to serialize json", http.StatusInternalServerError)
+		log.Printf("GET %s: %s", r.URL.Path, err)
+	}
+}
+
+func (c *Controller) ReadOutFile(w http.ResponseWriter, r *http.Request) {
+	user := chi.URLParam(r, "user")
+	project := chi.URLParam(r, "project")
+	path := chi.URLParam(r, "*")
+
+	file, err := ReadProjectFile(c.config, user, project, "out", path)
+	if err != nil {
+		http.Error(w, "Invalid file path", http.StatusBadRequest)
+		log.Printf("%s %s: %s", r.Method, r.URL.Path, err)
+		return
+	}
+	defer file.Close()
+
+	if _, err := io.Copy(w, file); err != nil {
+		log.Printf("%s %s copy: %s", r.Method, r.URL.Path, err)
 	}
 }
