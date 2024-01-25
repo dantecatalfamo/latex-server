@@ -84,42 +84,6 @@ func CreateRemoteProject(ctx context.Context, globalConfig GlobalConfig, project
 	return nil
 }
 
-func ReadProjectConfig(projectRoot string) (ProjectConfig, error) {
-	configPath := filepath.Join(projectRoot, ProjectConfigName)
-
-	file, err := os.Open(configPath)
-	if err != nil {
-		return ProjectConfig{}, fmt.Errorf("ReadProjectConfig open file: %w", err)
-	}
-	defer file.Close()
-
-	var projectConfig ProjectConfig
-
-	if err := json.NewDecoder(file).Decode(&projectConfig); err != nil {
-		return ProjectConfig{}, fmt.Errorf("ReadProjectConfig decode json: %w", err)
-	}
-
-	return projectConfig, nil
-}
-
-func WriteProjectConfig(projectRoot string, projectConfig ProjectConfig) error {
-	configPath := filepath.Join(projectRoot, ProjectConfigName)
-
-	file, err := os.Create(configPath)
-	if err != nil {
-		return fmt.Errorf("WriteProjectConfig create file: %w", err)
-	}
-	defer file.Close()
-
-	enc := json.NewEncoder(file)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(projectConfig); err != nil {
-		return fmt.Errorf("WriteProjectConfig encode: %w", err)
-	}
-
-	return nil
-}
-
 func FetchProjectInfo(ctx context.Context, globalConfig GlobalConfig, projectName string) (server.ProjectInfo, error) {
 	// TODO incorporate auth at some point
 
