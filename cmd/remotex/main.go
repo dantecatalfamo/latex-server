@@ -63,7 +63,7 @@ func main() {
 			if len(cmd) == 2 {
 				fmt.Println(globalConfig.Token)
 			} else if len(cmd) == 3 {
-				globalConfig.Token= cmd[2]
+				globalConfig.Token = cmd[2]
 				saveConfig = true
 			} else {
 				fmt.Println("Too many arguments")
