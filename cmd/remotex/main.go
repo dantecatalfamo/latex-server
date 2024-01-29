@@ -102,7 +102,7 @@ func main() {
 		path := cmd[2]
 
 		if _, err := client.ReadProjectConfig(path); err == nil {
-			fmt.Println("Project already exists")
+			fmt.Printf("Project \"%s\" already exists on remote", projectName)
 			os.Exit(1)
 		}
 
