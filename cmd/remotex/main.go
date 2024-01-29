@@ -144,6 +144,17 @@ func main() {
 		projectRoot := findRoot()
 		projectConfig := readProjectConfig(projectRoot)
 		fmt.Printf("%+v\n", projectConfig)
+	case "info":
+		projectRoot := findRoot()
+		projectConfig := readProjectConfig(projectRoot)
+		ctx := context.Background()
+
+		info, err := client.FetchProjectInfo(ctx, globalConfig, projectConfig.ProjectName)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Printf("%+v\n", info)
 	case "build":
 		projectRoot := findRoot()
 		projectConfig := readProjectConfig(projectRoot)
@@ -161,6 +172,14 @@ func main() {
 			fmt.Println(err)
 			os.Exit(1)
 		}
+	case "user":
+		ctx := context.Background()
+		userInfo, err := client.FetchUserInfo(ctx, globalConfig)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Printf("%+v\n", userInfo)
 	default:
 		fmt.Println("Invalid command")
 		os.Exit(1)

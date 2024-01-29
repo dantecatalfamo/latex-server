@@ -31,8 +31,10 @@ func (c *Controller) ListProjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userInfo := UserInfo{ Name: user, Projects: infos }
+
 	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(infos)
+	err = json.NewEncoder(w).Encode(userInfo)
 	if err != nil {
 		http.Error(w, "Failed to serialize json", http.StatusInternalServerError)
 		log.Printf("GET %s: %s", r.URL.Path, err)

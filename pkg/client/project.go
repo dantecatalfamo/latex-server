@@ -592,3 +592,31 @@ func PullAllProjectFiles(ctx context.Context, globalConfig GlobalConfig, project
 	}
 	return nil
 }
+
+func FetchUserInfo(ctx context.Context, globalConfig GlobalConfig) (server.UserInfo, error) {
+	// TODO auth
+
+	_ = ctx
+
+	userUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User)
+	if err != nil {
+		return server.UserInfo{}, fmt.Errorf("FetchUserInfo path join: %w", err)
+	}
+
+	resp, err := http.Get(userUrl)
+	if err != nil {
+		return server.UserInfo{}, fmt.Errorf("FetchUserInfo http get: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return server.UserInfo{}, fmt.Errorf("FetchUserInfo unexpected status code: %d", resp.StatusCode)
+	}
+
+	var userInfo server.UserInfo
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return server.UserInfo{}, fmt.Errorf("FetchUserInfo decode: %w", err)
+	}
+
+	return userInfo, nil
+}

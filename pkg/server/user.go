@@ -9,6 +9,11 @@ import (
 
 const BearerTokenByteLength = 32
 
+type UserInfo struct {
+	Name string `json:"name"`
+	Projects []ProjectInfo `json:"projects"`
+}
+
 // CreateUser adds a user to the database and creates their directory
 func CreateUser(config Config, name string) error {
 	if _, err := config.database.conn.Exec("INSERT INTO users (name) VALUES (?)", name); err != nil {
