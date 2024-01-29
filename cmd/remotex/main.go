@@ -88,18 +88,18 @@ func main() {
 			fmt.Println("No project name")
 			os.Exit(1)
 		}
+
+		projectName := cmd[1]
+		var path string
+
 		if len(cmd) < 3 {
-			fmt.Println("No project path")
-			os.Exit(1)
+			path = projectName
 		}
 
 		if projectRoot, err := client.FindProjectRoot(); err == nil {
 			fmt.Printf("Already in a project: %s", projectRoot)
 			os.Exit(1)
 		}
-
-		projectName := cmd[1]
-		path := cmd[2]
 
 		if _, err := client.ReadProjectConfig(path); err == nil {
 			fmt.Printf("Project \"%s\" already exists on remote", projectName)
