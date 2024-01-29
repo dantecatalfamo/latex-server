@@ -578,3 +578,16 @@ func BuildAndSyncProject(ctx context.Context, globalConfig GlobalConfig, project
 
 	return buildOut, nil
 }
+
+func PullAllProjectFiles(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot string) error {
+	subdirs := []string{"src", "out"}
+	if projectConfig.SaveAuxFiles {
+		subdirs = append(subdirs, "aux")
+	}
+	for _, subdir := range subdirs {
+		if err := PullProjectFilesChanges(ctx, globalConfig, projectConfig, projectRoot, subdir); err != nil {
+			return fmt.Errorf("PullAllProjectFiles: %w", err)
+		}
+	}
+	return nil
+}

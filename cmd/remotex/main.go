@@ -153,6 +153,14 @@ func main() {
 			fmt.Println("Error:", err)
 		}
 		fmt.Print(buildOut)
+	case "pull":
+		projectRoot := findRoot()
+		projectConfig := readProjectConfig(projectRoot)
+		ctx := context.Background()
+		if err := client.PullAllProjectFiles(ctx, globalConfig, projectConfig, projectRoot); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 	default:
 		fmt.Println("Invalid command")
 		os.Exit(1)
