@@ -31,7 +31,19 @@ func (c *Controller) ListProjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userInfo := UserInfo{ Name: user, Projects: infos }
+	var userInfo UserInfo
+
+	// If we are not the authorized, only return public projects
+	if IsUserAuthed(r.Context(), user) {
+		userInfo = UserInfo{ Name: user, Projects: infos }
+	} else {
+		userInfo.Name = user
+		for _, project := range infos {
+			if project.Public {
+				userInfo.Projects = append(userInfo.Projects, project)
+			}
+		}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(userInfo)
@@ -44,6 +56,12 @@ func (c *Controller) ListProjects(w http.ResponseWriter, r *http.Request) {
 
 func (c *Controller) CreateProject(w http.ResponseWriter, r *http.Request) {
 	user := chi.URLParam(r, "user")
+	if !IsUserAuthed(r.Context(), user) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		log.Printf("%s %s: %s", r.Method, r.URL.Path, "forbidden")
+		return
+	}
+
 	r.ParseForm()
 	project := r.FormValue("project")
 	if project == "" {

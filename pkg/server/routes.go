@@ -18,8 +18,12 @@ func SetupRoutes(config Config, router *chi.Mux) {
 		rUser.Get("/", controller.ListProjects)
 		// Create a new project
 		rUser.Post("/", controller.CreateProject)
-		// Get project information
+
 		rUser.Route("/{project}", func(rProject chi.Router) {
+			// Deny access to private projects for non-authed users
+			rProject.Use(AuthProtectProjectMiddleware(config))
+
+			// Get project information
 			rProject.Get("/", controller.ProjectInfo)
 			// Delete a project
 			rProject.Delete("/", controller.DeleteProject)

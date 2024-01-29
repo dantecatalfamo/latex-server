@@ -323,3 +323,16 @@ func (db *Database) SetProjectPublic(user, project string, public bool) error {
 	}
 	return nil
 }
+
+func (db *Database) IsProjectPublic(user, project string) (bool, error) {
+	row := db.conn.QueryRow("SELECT p.public FROM projects p JOIN users u ON u.id = p.user_id WHERE u.name = ? AND p.name = ?", user, project)
+	if row.Err() != nil {
+		return false, fmt.Errorf("IsProjectPublic query: %w", row.Err())
+	}
+	var val int
+	if err := row.Scan(&val); err != nil {
+		return false, fmt.Errorf("IsProjectPublic scan: %w", err)
+	}
+
+	return val == 1, nil
+}
