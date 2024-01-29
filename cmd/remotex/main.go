@@ -188,7 +188,7 @@ func main() {
 			os.Exit(1)
 		}
 		for _, project := range userInfo.Projects {
-			fmt.Printf("%s, public: %v, build: %s\n", project.Name, project.Public, project.LatestBuild.Status)
+			fmt.Printf("- %s\n  public: %v,\n  build: %s\n", project.Name, project.Public, project.LatestBuild.Status)
 		}
 	default:
 		fmt.Println("Invalid command")
