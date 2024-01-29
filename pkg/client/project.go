@@ -59,8 +59,6 @@ func NewProject(ctx context.Context, globalConfig GlobalConfig, projectName, pro
 }
 
 func CreateRemoteProject(ctx context.Context, globalConfig GlobalConfig, projectName string) error {
-	// TODO auth
-
 	userUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User)
 	if err != nil {
 		return fmt.Errorf("CreateRemoteProject join url: %w", err)
@@ -68,8 +66,10 @@ func CreateRemoteProject(ctx context.Context, globalConfig GlobalConfig, project
 
 	form := url.Values{}
 	form["project"] = []string{projectName}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, userUrl, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", globalConfig.Token))
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -85,19 +85,18 @@ func CreateRemoteProject(ctx context.Context, globalConfig GlobalConfig, project
 }
 
 func FetchProjectInfo(ctx context.Context, globalConfig GlobalConfig, projectName string) (server.ProjectInfo, error) {
-	// TODO incorporate auth at some point
-
 	projectUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User, projectName)
 	if err != nil {
 		return server.ProjectInfo{}, fmt.Errorf("FetchProjectInfo path join: %w", err)
 	}
 
-	res, err := http.NewRequestWithContext(ctx, http.MethodGet, projectUrl, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, projectUrl, nil)
 	if err != nil {
 		return server.ProjectInfo{}, fmt.Errorf("FetchProjectInfo create request: %w", err)
 	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", globalConfig.Token))
 
-	resp, err := http.DefaultClient.Do(res)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return server.ProjectInfo{}, fmt.Errorf("FetchProjectInfo http get: %w", err)
 	}
@@ -198,15 +197,19 @@ func ScanProjectFiles(projectRoot, subdir string) ([]server.FileInfo, error) {
 	return fileInfos, nil
 }
 
-func FetchProjectFileList(globalConfig GlobalConfig, projectName, subdir string) ([]server.FileInfo, error) {
-	// TODO add auth
-
+func FetchProjectFileList(ctx context.Context, globalConfig GlobalConfig, projectName, subdir string) ([]server.FileInfo, error) {
 	filesUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User, projectName, subdir)
 	if err != nil {
 		return nil, fmt.Errorf("FetchProjectFileList join path: %w", err)
 	}
 
-	resp, err := http.Get(filesUrl)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, filesUrl, nil)
+	if err != nil {
+		return nil, fmt.Errorf("FetchProjectFileList create request: %w", err)
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", globalConfig.Token))
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("FetchProjectFileList http get: %w", err)
 	}
@@ -230,8 +233,6 @@ func FetchProjectFileList(globalConfig GlobalConfig, projectName, subdir string)
 }
 
 func PullProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot, subdir, filePath string) (int64, error) {
-	// TODO auth
-
 	fileUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User, projectConfig.ProjectName, subdir, filePath)
 	if err != nil {
 		return 0, fmt.Errorf("PullProjectFile join url: %w", err)
@@ -241,6 +242,7 @@ func PullProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConf
 	if err != nil {
 		return 0, fmt.Errorf("PullProjectFile create request object: %w", err)
 	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", globalConfig.Token))
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -268,8 +270,6 @@ func PullProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConf
 }
 
 func PushProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, projectRoot, subdir, filePath string) (int64, error) {
-	// TODO auth
-
 	subdirUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User, projectConfig.ProjectName, subdir)
 	if err != nil {
 		return 0, fmt.Errorf("PushProjectFile join url: %w", err)
@@ -303,6 +303,7 @@ func PushProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConf
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, subdirUrl, body)
 	req.Header.Add("Content-Type", form.FormDataContentType())
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", globalConfig.Token))
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -317,8 +318,6 @@ func PushProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConf
 }
 
 func DeleteRemoteProjectFile(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig, subdir, filePath string) error {
-	// TODO auth
-
 	fileUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User, projectConfig.ProjectName, subdir, filePath)
 	if err != nil {
 		return fmt.Errorf("DeleteRemoteProjectFile join url: %w", err)
@@ -328,6 +327,7 @@ func DeleteRemoteProjectFile(ctx context.Context, globalConfig GlobalConfig, pro
 	if err != nil {
 		return fmt.Errorf("DeleteRemoteProjectFile create request: %w", err)
 	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", globalConfig.Token))
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -397,7 +397,7 @@ func PushProjectFilesChanges(ctx context.Context, globalConfig GlobalConfig, pro
 	if err != nil {
 		return fmt.Errorf("PushProjectFilesChanges scan local files: %w", err)
 	}
-	remoteFiles, err := FetchProjectFileList(globalConfig, projectConfig.ProjectName, subdir)
+	remoteFiles, err := FetchProjectFileList(ctx, globalConfig, projectConfig.ProjectName, subdir)
 	if err != nil {
 		return fmt.Errorf("PushProjectFilesChanges scan remote files: %w", err)
 	}
@@ -421,7 +421,7 @@ func PullProjectFilesChanges(ctx context.Context, globalConfig GlobalConfig, pro
 	if err != nil {
 		return fmt.Errorf("PullProjectFilesChanges scan local files: %w", err)
 	}
-	remoteFiles, err := FetchProjectFileList(globalConfig, projectConfig.ProjectName, subdir)
+	remoteFiles, err := FetchProjectFileList(ctx, globalConfig, projectConfig.ProjectName, subdir)
 	if err != nil {
 		return fmt.Errorf("PullProjectFilesChanges scan remote files: %w", err)
 	}
@@ -487,8 +487,6 @@ outerAdded:
 }
 
 func BuildProject(ctx context.Context, globalConfig GlobalConfig, projectConfig ProjectConfig) (string, error) {
-	// TODO auth
-
 	buildUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User, projectConfig.ProjectName, "build")
 	if err != nil {
 		return "", fmt.Errorf("BuildProject join url: %w", err)
@@ -497,6 +495,7 @@ func BuildProject(ctx context.Context, globalConfig GlobalConfig, projectConfig 
 	// XXX keep up to date with build options!
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, buildUrl, nil)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", globalConfig.Token))
 	query := req.URL.Query()
 
 	if projectConfig.BuildOptions.CleanBuild {
@@ -594,16 +593,18 @@ func PullAllProjectFiles(ctx context.Context, globalConfig GlobalConfig, project
 }
 
 func FetchUserInfo(ctx context.Context, globalConfig GlobalConfig) (server.UserInfo, error) {
-	// TODO auth
-
-	_ = ctx
-
 	userUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User)
 	if err != nil {
 		return server.UserInfo{}, fmt.Errorf("FetchUserInfo path join: %w", err)
 	}
 
-	resp, err := http.Get(userUrl)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, userUrl, nil)
+	if err != nil {
+		return server.UserInfo{}, fmt.Errorf("FetchUserInfo create request: %w", err)
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", globalConfig.Token))
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return server.UserInfo{}, fmt.Errorf("FetchUserInfo http get: %w", err)
 	}

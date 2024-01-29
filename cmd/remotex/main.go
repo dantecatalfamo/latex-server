@@ -128,8 +128,10 @@ func main() {
 	case "filesremote":
 		projectRoot := findRoot()
 		projectConfig := readProjectConfig(projectRoot)
+		ctx := context.Background()
+
 		for _, subdir := range []string{"src", "aux", "out"} {
-			files, err := client.FetchProjectFileList(globalConfig, projectConfig.ProjectName, subdir)
+			files, err := client.FetchProjectFileList(ctx, globalConfig, projectConfig.ProjectName, subdir)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
