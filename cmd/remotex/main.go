@@ -180,6 +180,16 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Printf("%+v\n", userInfo)
+	case "listprojects":
+		ctx := context.Background()
+		userInfo, err := client.FetchUserInfo(ctx, globalConfig)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		for _, project := range userInfo.Projects {
+			fmt.Printf("%s, public: %v, build: %s\n", project.Name, project.Public, project.LatestBuild.Status)
+		}
 	default:
 		fmt.Println("Invalid command")
 		os.Exit(1)
