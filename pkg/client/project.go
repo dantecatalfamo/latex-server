@@ -584,6 +584,7 @@ func PullAllProjectFiles(ctx context.Context, globalConfig GlobalConfig, project
 	if projectConfig.SaveAuxFiles {
 		subdirs = append(subdirs, "aux")
 	}
+
 	for _, subdir := range subdirs {
 		if err := PullProjectFilesChanges(ctx, globalConfig, projectConfig, projectRoot, subdir); err != nil {
 			return fmt.Errorf("PullAllProjectFiles: %w", err)

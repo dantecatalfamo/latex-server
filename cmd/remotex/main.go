@@ -34,8 +34,8 @@ func main() {
 
 	if cmd[0] == "global" {
 		if len(cmd) < 2 {
-			fmt.Println("Please specify a config option (serverBaseUrl, user, token)")
-			os.Exit(1)
+			fmt.Printf("%+v\n", globalConfig)
+			return
 		}
 		saveConfig := false
 		switch cmd[1] {
@@ -111,7 +111,7 @@ func main() {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-	case "list":
+	case "files":
 		projectRoot := findRoot()
 		for _, subdir := range []string{"src", "aux", "out"} {
 			files, err := client.ScanProjectFiles(projectRoot, subdir)
@@ -125,7 +125,7 @@ func main() {
 				fmt.Printf("  %+v\n", file)
 			}
 		}
-	case "listremote":
+	case "filesremote":
 		projectRoot := findRoot()
 		projectConfig := readProjectConfig(projectRoot)
 		for _, subdir := range []string{"src", "aux", "out"} {
@@ -140,7 +140,7 @@ func main() {
 				fmt.Printf("  %+v\n", file)
 			}
 		}
-	case "config":
+	case "project":
 		projectRoot := findRoot()
 		projectConfig := readProjectConfig(projectRoot)
 		fmt.Printf("%+v\n", projectConfig)
