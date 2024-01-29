@@ -11,6 +11,7 @@ import (
 	"os/exec"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 type Controller struct {
@@ -122,7 +123,9 @@ func (c *Controller) BuildProject(w http.ResponseWriter, r *http.Request) {
 		Force: r.Form.Has("force"),
 	}
 
-	log.Printf("Build started: %s/%s %+v", user, project, options)
+	requestId := middleware.GetReqID(r.Context())
+
+	log.Printf("[%s] Build started: %s/%s %+v", requestId, user, project, options)
 
 	stdout, err := BuildProject(r.Context(), c.config, user, project, options)
 	if err != nil {
@@ -139,7 +142,7 @@ func (c *Controller) BuildProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Build finished: %s/%s", user, project)
+	log.Printf("[%s] Build finished: %s/%s", requestId, user, project)
 
 	if _, err := fmt.Fprintln(w, stdout); err != nil {
 		log.Printf("POST %s: %s", r.URL.Path, err)

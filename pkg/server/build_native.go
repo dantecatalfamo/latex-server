@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
+
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 func RunBuildNative(ctx context.Context, options BuildOptions) (string, error) {
@@ -64,7 +66,10 @@ func RunBuildNative(ctx context.Context, options BuildOptions) (string, error) {
 	cmd.Stdout = cmdOut
 	cmd.Stderr = cmdOut
 
-	log.Printf("Starting build in %s: %v", options.SrcDir, args)
+	// HTTP request ID
+	requestId := middleware.GetReqID(ctx)
+
+	log.Printf("[%s] Starting build in %s: %v", requestId, options.SrcDir, args)
 	if err := cmd.Run(); err != nil {
 		// If error is type *ExitError, the cmdOut should be populated
 		// with an error message
