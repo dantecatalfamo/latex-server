@@ -90,10 +90,10 @@ func main() {
 		}
 
 		projectName := cmd[1]
-		var path string
+		path := projectName
 
-		if len(cmd) < 3 {
-			path = projectName
+		if len(cmd) > 2 {
+			path = cmd[2]
 		}
 
 		if projectRoot, err := client.FindProjectRoot(); err == nil {
@@ -191,6 +191,21 @@ func main() {
 		}
 		for _, project := range userInfo.Projects {
 			fmt.Printf("- %s\n  public: %v,\n  build: %s\n", project.Name, project.Public, project.LatestBuild.Status)
+		}
+	case "clone":
+		if len(cmd) < 2 {
+			fmt.Println("No project name")
+			os.Exit(1)
+		}
+		projectName := cmd[1]
+		path := projectName
+		if len(cmd) > 2 {
+			path = cmd[2]
+		}
+		ctx := context.Background()
+		if err := client.CloneProject(ctx, globalConfig, projectName, path); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
 		}
 	default:
 		fmt.Println("Invalid command")

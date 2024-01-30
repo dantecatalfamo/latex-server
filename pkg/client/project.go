@@ -592,6 +592,52 @@ func PullAllProjectFiles(ctx context.Context, globalConfig GlobalConfig, project
 	return nil
 }
 
+func CloneProject(ctx context.Context, globalConfig GlobalConfig, projectName, path string) error {
+	projectInfo, err := FetchProjectInfo(ctx, globalConfig, projectName)
+	if err != nil {
+		return fmt.Errorf("CloneProject fetch project info: %w", err)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("CloneProject unable to get cwd: %w", err)
+	}
+	projectRoot := filepath.Join(cwd, path)
+
+	_, err = os.Stat(projectRoot)
+	if err == nil {
+		return fmt.Errorf("CloneProject directory already exists")
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("CloneProject dir stat: %w", err)
+	}
+
+	if err := os.Mkdir(projectRoot, 0700); err != nil {
+		return fmt.Errorf("CloneProject make project root: %w", err)
+	}
+
+	for _, subdir := range []string{"src", "aux", "out"} {
+		subdirPath := filepath.Join(projectRoot, subdir)
+		if err := os.Mkdir(subdirPath, 0700); err != nil {
+			return fmt.Errorf("CloneProject make subdir: %w", err)
+		}
+	}
+
+	projectConfig := ProjectConfig{}
+	projectConfig.ProjectName = projectInfo.Name
+	projectConfig.BuildOptions = projectInfo.LatestBuild.Options
+
+	if err := WriteProjectConfig(projectRoot, projectConfig); err != nil {
+		return fmt.Errorf("CloneProject write config: %w", err)
+	}
+
+	if err := PullAllProjectFiles(ctx, globalConfig, projectConfig, projectRoot); err != nil {
+		return fmt.Errorf("CloneProject pull files: %w", err)
+	}
+
+	return nil
+}
+
 func FetchUserInfo(ctx context.Context, globalConfig GlobalConfig) (server.UserInfo, error) {
 	userUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, globalConfig.User)
 	if err != nil {
