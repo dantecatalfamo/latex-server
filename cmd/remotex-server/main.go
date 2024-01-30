@@ -10,9 +10,10 @@ import (
 )
 
 const listenAddress = "localhost:3344"
+const defaultConfigPath = "/etc/remotex/remotex.json"
 
 func main() {
-	configPath := flag.String("config", "", "Configutation file")
+	configPath := flag.String("config", defaultConfigPath, "Configutation file")
 	flag.Parse()
 
 	cmd := flag.Args()

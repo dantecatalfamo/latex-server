@@ -23,8 +23,8 @@ type Config struct {
 
 type BuildMode string
 
-const BuildModeNative = "native"
-const BuildModeDocker = "docker"
+const BuildModeNative BuildMode = "native"
+const BuildModeDocker BuildMode = "docker"
 
 func WriteNewConfig(path string) error {
 	config := Config{
@@ -32,6 +32,8 @@ func WriteNewConfig(path string) error {
 		BuildMode: BuildModeNative,
 		MaxFileSize: 25 * 1024 * 1024,
 		MaxProjectBuildTime: 45 * time.Second,
+		DatabasePath: "/var/db/remotex/remotex.db",
+		ProjectDir: "/var/lib/remotex/",
 	}
 
 	config.MaxProjectBuildTimeString = config.MaxProjectBuildTime.String()
