@@ -45,8 +45,6 @@ func SetupRoutes(config Config, router *chi.Mux) {
 			rProject.Get("/out", controller.ListOutFiles)
 			// Retrieve a project out file with the specified hash
 			rProject.Get("/out/*", controller.ReadOutFile)
-
 		})
-
 	})
 }
