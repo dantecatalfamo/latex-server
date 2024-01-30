@@ -180,7 +180,7 @@ func main() {
 		fmt.Println("  dependents   ", info.LatestBuild.Options.Dependents)
 		fmt.Println("  cleanBuild   ", info.LatestBuild.Options.CleanBuild)
 		fmt.Println("buildOut")
-		fmt.Printf(info.LatestBuild.BuildOut)
+		fmt.Print(info.LatestBuild.BuildOut)
 	case "build":
 		projectRoot := findRoot()
 		projectConfig := readProjectConfig(projectRoot)
