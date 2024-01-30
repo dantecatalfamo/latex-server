@@ -34,7 +34,9 @@ func main() {
 
 	if cmd[0] == "global" {
 		if len(cmd) < 2 {
-			fmt.Printf("%+v\n", globalConfig)
+			fmt.Println("user         ", globalConfig.User)
+			fmt.Println("token        ", globalConfig.Token)
+			fmt.Println("serverBaseUrl", globalConfig.ServerBaseUrl)
 			return
 		}
 		saveConfig := false
@@ -145,7 +147,15 @@ func main() {
 	case "project":
 		projectRoot := findRoot()
 		projectConfig := readProjectConfig(projectRoot)
-		fmt.Printf("%+v\n", projectConfig)
+		fmt.Println("projectName    ", projectConfig.ProjectName)
+		fmt.Println("saveAuxFiles   ", projectConfig.SaveAuxFiles)
+		fmt.Println("buildOptions")
+		fmt.Println("  force        ", projectConfig.BuildOptions.Force)
+		fmt.Println("  fileLineError", projectConfig.BuildOptions.FileLineError)
+		fmt.Println("  engine       ", projectConfig.BuildOptions.Engine)
+		fmt.Println("  document     ", projectConfig.BuildOptions.Document)
+		fmt.Println("  dependents   ", projectConfig.BuildOptions.Dependents)
+		fmt.Println("  cleanBuild   ", projectConfig.BuildOptions.CleanBuild)
 	case "info":
 		projectRoot := findRoot()
 		projectConfig := readProjectConfig(projectRoot)
