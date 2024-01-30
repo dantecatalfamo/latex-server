@@ -21,7 +21,7 @@ import (
 	"github.com/dantecatalfamo/remotex/pkg/server"
 )
 
-const ProjectConfigName = ".remotex"
+const ProjectConfigName = ".remotex.json"
 
 func NewProject(ctx context.Context, globalConfig GlobalConfig, projectName, projectRoot string) error {
 	// Should fetch project info before continuing
