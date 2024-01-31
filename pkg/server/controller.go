@@ -26,7 +26,7 @@ func (c *Controller) ListProjects(w http.ResponseWriter, r *http.Request) {
 	user := chi.URLParam(r, "user")
 	infos, err := c.config.database.ListUserProjects(user)
 	if err != nil {
-		http.Error(w, "No user", http.StatusBadRequest)
+		http.Error(w, "404 page not found", http.StatusNotFound)
 		log.Printf("GET %s: %s", r.URL.Path, err)
 		return
 	}
