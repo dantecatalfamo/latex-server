@@ -28,7 +28,7 @@ const BuildModeDocker BuildMode = "docker"
 
 func WriteNewConfig(path string) error {
 	config := Config{
-		ListenAddress: "localhost:3344",
+		ListenAddress: "0.0.0.0:3344",
 		BuildMode: BuildModeNative,
 		MaxFileSize: 25 * 1024 * 1024,
 		MaxProjectBuildTime: 45 * time.Second,
