@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -70,7 +71,11 @@ func ReadAndInitializeConfig(path string) (Config, error) {
 	}
 
 	if err := os.MkdirAll(config.ProjectDir, 0700); err != nil {
-		return Config{}, fmt.Errorf("ReadAndInitializeConfig creatre project dir: %w", err)
+		return Config{}, fmt.Errorf("ReadAndInitializeConfig create project dir: %w", err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(config.DatabasePath), 0700); err != nil {
+		return Config{}, fmt.Errorf("ReadAndInitializeConfig create db path: %w", err)
 	}
 
 	db, err := NewDatabse(config.DatabasePath)
