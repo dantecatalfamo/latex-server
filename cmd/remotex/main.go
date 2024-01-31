@@ -11,7 +11,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("No command")
+		usage()
 		os.Exit(1)
 	}
 
@@ -235,6 +235,21 @@ func main() {
 		fmt.Println("Invalid command")
 		os.Exit(1)
 	}
+}
+
+func usage() {
+	commands := `  build        Build the current project
+  clone        Clone an existing project to your local machien
+  files        List the current project's local files
+  filesremote  List the current project's remote files
+  global       Read or write global config
+  init         Create a new project
+  listprojects List all remote projects
+  project      Read or write project config
+  pull         Pull any missing files from project remote
+  user         Read user info from remote
+`
+	fmt.Printf("remotex <command> [args]\n%s", commands)
 }
 
 func findRoot() string {
