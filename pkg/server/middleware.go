@@ -79,7 +79,10 @@ func AuthProtectProjectMiddleware(config Config) func(http.Handler) http.Handler
 				http.Error(w, "internal service error", http.StatusInternalServerError)
 				return
 			}
-			if public || user == authedUser {
+			// Only allow public access to GET and HEAD
+			allowedPublicMethod := r.Method == http.MethodGet || r.Method == http.MethodHead
+			allowedPublicRequest := public && allowedPublicMethod
+			if allowedPublicRequest || user == authedUser {
 				next.ServeHTTP(w, r)
 			} else {
 				http.Error(w, "404 page not found", http.StatusNotFound)
