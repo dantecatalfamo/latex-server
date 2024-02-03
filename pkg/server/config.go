@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// TODO Get away from JSON as a config language
 // TODO use time.Duration.String and time.ParseDuration
 type Config struct {
 	ListenAddress string `json:"listenAddress"` // Where the server will listen

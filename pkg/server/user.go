@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 )
 
+// TODO Add a way for clients to manage tokens
 const BearerTokenByteLength = 32
 
 type UserInfo struct {

@@ -17,6 +17,8 @@ import (
 	"time"
 )
 
+// TODO Add a way for clients to manage project settings (ie. public)
+
 // NewProject creates a new project belonging to owner with name, and
 // creates the appropriate subdirectories
 func NewProject(config Config, user string, name string) error {
