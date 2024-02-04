@@ -18,7 +18,7 @@ func main() {
 
 	cmd := flag.Args()
 	if len(cmd) == 0 {
-		flag.Usage()
+		usage()
 		return
 	}
 
@@ -92,4 +92,18 @@ func main() {
 		}
 		log.Println("Token deleted")
 	}
+}
+
+func usage() {
+	fmt.Println("Usage: remotex-server [options] <command> [args]")
+	flag.PrintDefaults()
+	fmt.Printf(`
+  commands:
+    newconfig <file>
+    server
+    useradd   <username>
+    userdel   <username>
+    tokenadd  <username>
+    tokendel  <token>
+`)
 }
