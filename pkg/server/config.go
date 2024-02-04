@@ -28,8 +28,9 @@ type BuildMode string
 const BuildModeNative BuildMode = "native"
 const BuildModeDocker BuildMode = "docker"
 
-func WriteNewConfig(path string) error {
-	config := Config{
+// NewConfig returns a Config with default values
+func NewConfig() Config {
+	return Config{
 		ListenAddress: "0.0.0.0:3344",
 		BuildMode: BuildModeNative,
 		MaxFileSize: 25 * 1024 * 1024,
@@ -37,6 +38,12 @@ func WriteNewConfig(path string) error {
 		DatabasePath: "/var/db/remotex/remotex.db",
 		ProjectDir: "/var/lib/remotex/",
 	}
+}
+
+// WriteNewConfig creates a new config with default values and writes
+// it to a file at path
+func WriteNewConfig(path string) error {
+	config := NewConfig()
 
 	config.MaxProjectBuildTimeString = config.MaxProjectBuildTime.String()
 
@@ -55,6 +62,9 @@ func WriteNewConfig(path string) error {
 	return nil
 }
 
+// ReadAndInitializeConfig reads a config at path and does everything
+// required to use the config. This includes opening and migrating the
+// databse if required, and creating directories.
 func ReadAndInitializeConfig(path string) (Config, error) {
 	var config Config
 	file, err := os.Open(path)
