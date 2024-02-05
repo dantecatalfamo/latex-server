@@ -24,7 +24,7 @@ func main() {
 
 	if cmd[0] == "newconfig" {
 		if len(cmd) != 2 {
-			fmt.Println("Specify new config path")
+			fmt.Println("usage: remotex newconfig <path>")
 			os.Exit(1)
 		}
 		if err := server.WriteNewConfig(cmd[1]); err != nil {
@@ -55,6 +55,7 @@ func main() {
 		}
 	case "useradd":
 		if len(cmd) < 2 {
+			fmt.Println("usage: remotex useradd <username>")
 			return
 		}
 		user := cmd[1]
@@ -64,6 +65,7 @@ func main() {
 		log.Printf("Added user %s", user)
 	case "userdel":
 		if len(cmd) < 2 {
+			fmt.Println("usage: remotex userdel <username>")
 			return
 		}
 		user := cmd[1]
@@ -73,7 +75,8 @@ func main() {
 		log.Printf("Deleted user %s", user)
 	case "tokenadd":
 		if len(cmd) < 3 {
-			return
+			fmt.Println("usage: remotex tokenadd <username> <description>")
+			os.Exit(1)
 		}
 		user := cmd[1]
 		desc := cmd[2]
@@ -84,6 +87,7 @@ func main() {
 		fmt.Printf("Token: %s\n", token)
 	case "tokendel":
 		if len(cmd) < 2 {
+			fmt.Println("usage: remotex tokendel <token>")
 			return
 		}
 		token := cmd[1]
@@ -91,6 +95,9 @@ func main() {
 			log.Fatal(err)
 		}
 		log.Println("Token deleted")
+	default:
+		usage()
+		os.Exit(1)
 	}
 }
 
