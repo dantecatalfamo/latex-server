@@ -86,7 +86,10 @@ func main() {
 	}
 
 	if cmd[0] == "login" {
-		// TODO check if logged in, ask to logout before logging in
+		if globalConfig.Token != "" {
+			fmt.Println("Already logged in, logout first")
+			os.Exit(1)
+		}
 		if globalConfig.ServerBaseUrl == "" {
 			fmt.Print("Server base url: ")
 			reader := bufio.NewReader(os.Stdin)
