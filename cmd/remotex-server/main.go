@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 
 	"github.com/dantecatalfamo/remotex/pkg/server"
+	"golang.org/x/term"
 )
 
 const listenAddress = "localhost:3344"
@@ -24,7 +26,7 @@ func main() {
 
 	if cmd[0] == "newconfig" {
 		if len(cmd) != 2 {
-			fmt.Println("usage: remotex newconfig <path>")
+			fmt.Println("usage: remotex-server newconfig <path>")
 			os.Exit(1)
 		}
 		if err := server.WriteNewConfig(cmd[1]); err != nil {
@@ -55,7 +57,7 @@ func main() {
 		}
 	case "useradd":
 		if len(cmd) < 2 {
-			fmt.Println("usage: remotex useradd <username>")
+			fmt.Println("usage: remotex-server useradd <username>")
 			return
 		}
 		user := cmd[1]
@@ -65,7 +67,7 @@ func main() {
 		log.Printf("Added user %s", user)
 	case "userdel":
 		if len(cmd) < 2 {
-			fmt.Println("usage: remotex userdel <username>")
+			fmt.Println("usage: remotex-server userdel <username>")
 			return
 		}
 		user := cmd[1]
@@ -73,9 +75,40 @@ func main() {
 			log.Fatal(err)
 		}
 		log.Printf("Deleted user %s", user)
+	case "passwd":
+		if len(cmd) < 2 {
+			fmt.Println("usage: remotex-server passwd <username> [password]")
+			return
+		}
+		user := cmd[1]
+		var password string
+		if len(cmd) == 3 {
+			password = cmd[2]
+		} else {
+			fmt.Print("Enter new password: ")
+			passwd, err := term.ReadPassword(int(os.Stdin.Fd()))
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Println()
+			fmt.Print("Enter password again: ")
+			passwd2, err := term.ReadPassword(int(os.Stdin.Fd()))
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Println()
+			if !slices.Equal(passwd, passwd2) {
+				log.Fatal("Passwords are not the same")
+			}
+			password = string(passwd)
+		}
+		if err := server.SetUserPassword(config, user, password); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("Password set for %s\n", user)
 	case "tokenadd":
 		if len(cmd) < 3 {
-			fmt.Println("usage: remotex tokenadd <username> <description>")
+			fmt.Println("usage: remotex-server tokenadd <username> <description>")
 			os.Exit(1)
 		}
 		user := cmd[1]
@@ -87,7 +120,7 @@ func main() {
 		fmt.Printf("Token: %s\n", token)
 	case "tokendel":
 		if len(cmd) < 2 {
-			fmt.Println("usage: remotex tokendel <token>")
+			fmt.Println("usage: remotex-server tokendel <token>")
 			return
 		}
 		token := cmd[1]
@@ -110,6 +143,7 @@ func usage() {
     server
     useradd   <username>
     userdel   <username>
+    passwd    <username> [password]
     tokenadd  <username>
     tokendel  <token>
 `)

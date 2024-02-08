@@ -4,7 +4,8 @@ var migrations = []string{
 `
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER NOT NULL PRIMARY KEY,
-  name TEXT UNIQUE
+  name TEXT UNIQUE,
+  password_digest TEXT
 );
 
 CREATE TABLE IF NOT EXISTS tokens (

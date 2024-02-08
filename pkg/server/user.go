@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // TODO Add a way for clients to manage tokens
@@ -41,6 +43,33 @@ func DeleteUser(config Config, name string) error {
 	}
 
 	return nil
+}
+
+func SetUserPassword(config Config, name, password string) error {
+	digest, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("SetUserPassword generate from password: %w", err)
+	}
+
+	if _, err := config.database.conn.Exec("UPDATE users SET password_digest = ? WHERE name = ?", digest, name); err != nil {
+		return fmt.Errorf("SetUserPassword update db: %w", err)
+	}
+
+	return nil
+}
+
+func CompareUserPassword(config Config, name, password string) error {
+	row := config.database.conn.QueryRow("SELECT password_digest FROM users WHERE name = ?", name)
+	if row.Err() != nil {
+		return fmt.Errorf("CompareUserPassword query: %w", row.Err())
+	}
+
+	var digest string
+	if err := row.Scan(&digest); err != nil {
+		return fmt.Errorf("CompareUserPassword scan: %w", err)
+	}
+
+	return bcrypt.CompareHashAndPassword([]byte(digest), []byte(password))
 }
 
 // CreateUserToken generates a new random token for a user and stores
