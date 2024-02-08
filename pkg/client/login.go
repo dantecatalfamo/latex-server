@@ -58,6 +58,35 @@ func Login(globalConfig GlobalConfig, username, password string) error {
 
 var ErrIncorrectLogin = errors.New("incorrect username or password")
 
-// func Logout(globalConfig GlobalConfig) error {
-// TODO logout for client
-// }
+func Logout(globalConfig GlobalConfig) error {
+	logoutUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, "logout")
+	if err != nil {
+		return fmt.Errorf("Logout create url: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, logoutUrl, nil)
+	if err != nil {
+		return fmt.Errorf("Logout create request: %w", err)
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", globalConfig.Token))
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("Logout do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Unauthorized is invalid auth token, we can clear it and return success
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusUnauthorized {
+		return fmt.Errorf("Logout unexpected status code %d", resp.StatusCode)
+	}
+
+	globalConfig.Token = ""
+	globalConfig.User = ""
+
+	if err := WriteGlobalConfig(globalConfig); err != nil {
+		return fmt.Errorf("Logout write global config: %w", err)
+	}
+
+	return nil
+}

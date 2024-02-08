@@ -28,7 +28,7 @@ func TokenAuthMiddleware(config Config) func(http.Handler) http.Handler {
 			if authHeader != "" {
 				split := strings.Split(authHeader, " ")
 				if len(split) > 1 && split[0] == "Bearer" {
-					authToken := split[1]
+					authToken = split[1]
 					user, err := GetUserFromToken(config, authToken)
 					if err != nil {
 						log.Printf("[%s] TokenAuthMiddleware bad auth token \"%s\": %s", requestId, authToken, err)

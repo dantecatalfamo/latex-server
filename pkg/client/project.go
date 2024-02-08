@@ -68,6 +68,9 @@ func CreateRemoteProject(ctx context.Context, globalConfig GlobalConfig, project
 	form["project"] = []string{projectName}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, userUrl, strings.NewReader(form.Encode()))
+	if err != nil {
+		return fmt.Errorf("CreateRemoteProject create request: %w", err)
+	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", globalConfig.Token))
 

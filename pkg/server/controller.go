@@ -53,6 +53,7 @@ func (c *Controller) Logout(w http.ResponseWriter, r *http.Request) {
 	token := GetAuthToken(r.Context())
 	if token == "" {
 		http.Error(w, "not logged in", http.StatusUnauthorized)
+		log.Printf("%s %s: not logged in", r.Method, r.URL)
 		return
 	}
 
