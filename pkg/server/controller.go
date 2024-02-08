@@ -22,6 +22,47 @@ func NewController(config Config) Controller {
 	return Controller{ config: config }
 }
 
+func (c *Controller) Login(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "unable to parse form", http.StatusBadRequest)
+		log.Printf("%s %s: %s", r.Method, r.URL, err)
+		return
+	}
+
+	user := r.FormValue("username")
+	password := r.FormValue("password")
+	description := r.FormValue("description")
+
+	if err := CompareUserPassword(c.config, user, password); err != nil {
+		http.Error(w, "incorrect username or password", http.StatusUnauthorized)
+		log.Printf("%s %s: %s", r.Method, r.URL, err)
+		return
+	}
+
+	token, err := CreateUserToken(c.config, user, description)
+	if err != nil {
+		http.Error(w, "error creating token", http.StatusInternalServerError)
+		log.Printf("%s %s: %s", r.Method, r.URL, err)
+		return
+	}
+
+	fmt.Fprintln(w, token)
+}
+
+func (c *Controller) Logout(w http.ResponseWriter, r *http.Request) {
+	token := GetAuthToken(r.Context())
+	if token == "" {
+		http.Error(w, "not logged in", http.StatusUnauthorized)
+		return
+	}
+
+	if err := DeleteUserToken(c.config, token); err != nil {
+		http.Error(w, "error deleting token", http.StatusInternalServerError)
+		log.Printf("%s %s: %s", r.Method, r.URL, err)
+		return
+	}
+}
+
 func (c *Controller) ListProjects(w http.ResponseWriter, r *http.Request) {
 	user := chi.URLParam(r, "user")
 	infos, err := c.config.database.ListUserProjects(user)

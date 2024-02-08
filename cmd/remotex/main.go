@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/dantecatalfamo/remotex/pkg/client"
+	"golang.org/x/term"
 )
 
 func main() {
@@ -79,6 +82,39 @@ func main() {
 			}
 		}
 
+		return
+	}
+
+	if cmd[0] == "login" {
+		// TODO check if logged in, ask to logout before logging in
+		if globalConfig.ServerBaseUrl == "" {
+			fmt.Print("Server base url: ")
+			reader := bufio.NewReader(os.Stdin)
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			globalConfig.ServerBaseUrl = strings.Trim(line, "\n")
+		}
+		fmt.Printf("Login for %s\n", globalConfig.ServerBaseUrl)
+		var username string
+		fmt.Print("Username: ")
+		fmt.Scanln(&username)
+		fmt.Print("Password: ")
+		password, err := term.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Println()
+
+		if err := client.Login(globalConfig, username, string(password)); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		fmt.Println("Logged in")
 		return
 	}
 
@@ -240,6 +276,7 @@ func main() {
 func usage() {
 	fmt.Print(`Usage: remotex <command> [args]
 commands:
+  login        Login to remotex server
   build        Build the current project
   clone        Clone an existing project to your local machien
   files        List the current project's local files

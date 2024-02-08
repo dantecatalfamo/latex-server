@@ -59,6 +59,12 @@ func SetUserPassword(config Config, name, password string) error {
 }
 
 func CompareUserPassword(config Config, name, password string) error {
+	// TODO Do constant time compare even if the user isn't in the DB.
+	//
+	// Theoretically attacker could tell if the user exusts or
+	// not because the request will return sooner since we don't
+	// compare the password, but it's not very important right now
+
 	row := config.database.conn.QueryRow("SELECT password_digest FROM users WHERE name = ?", name)
 	if row.Err() != nil {
 		return fmt.Errorf("CompareUserPassword query: %w", row.Err())

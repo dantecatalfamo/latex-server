@@ -13,6 +13,7 @@ import (
 )
 
 const ContextAuthedUserKey = "authedUser"
+const ContextAuthTokenKey = "authToken"
 
 // TokenAuthMiddleware checks the request for a bearer token, and if
 // that token matches a user in the database, it adds that user to the
@@ -22,20 +23,22 @@ func TokenAuthMiddleware(config Config) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestId := middleware.GetReqID(r.Context())
 			var authedUser string
+			var authToken string
 			authHeader := r.Header.Get("Authorization")
 			if authHeader != "" {
 				split := strings.Split(authHeader, " ")
 				if len(split) > 1 && split[0] == "Bearer" {
-					token := split[1]
-					user, err := GetUserFromToken(config, token)
+					authToken := split[1]
+					user, err := GetUserFromToken(config, authToken)
 					if err != nil {
-						log.Printf("[%s] TokenAuthMiddleware bad auth token \"%s\": %s", requestId, token, err)
+						log.Printf("[%s] TokenAuthMiddleware bad auth token \"%s\": %s", requestId, authToken, err)
 					} else {
 						authedUser = user
 					}
 				}
 			}
-			ctx := context.WithValue(r.Context(), ContextAuthedUserKey, authedUser)
+			ctxToken := context.WithValue(r.Context(), ContextAuthTokenKey, authToken)
+			ctx := context.WithValue(ctxToken, ContextAuthedUserKey, authedUser)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -48,6 +51,17 @@ func GetAuthedUser(ctx context.Context) string {
 	}
 	if user, ok := ctx.Value(ContextAuthedUserKey).(string); ok {
 		return user
+	}
+	return ""
+}
+
+// GetAuthToken retrieves the authorization token set by TokenAuthMiddleware
+func GetAuthToken(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	if token, ok := ctx.Value(ContextAuthTokenKey).(string); ok {
+		return token
 	}
 	return ""
 }

@@ -13,6 +13,11 @@ func SetupRoutes(config Config, router *chi.Mux) {
 
 	router.Use(TokenAuthMiddleware(config))
 
+	// Login
+	router.Post("/login", controller.Login)
+	// Logout
+	router.Post("/logout", controller.Logout)
+
 	router.Route("/{user}", func(rUser chi.Router) {
 		// List projects
 		rUser.Get("/", controller.ListProjects)
