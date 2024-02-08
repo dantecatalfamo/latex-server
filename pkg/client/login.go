@@ -59,5 +59,5 @@ func Login(globalConfig GlobalConfig, username, password string) error {
 var ErrIncorrectLogin = errors.New("incorrect username or password")
 
 // func Logout(globalConfig GlobalConfig) error {
-
+// TODO logout for client
 // }
