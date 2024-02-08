@@ -2,6 +2,7 @@ package server
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +13,8 @@ import (
 // TODO Add a way for clients to manage tokens
 const BearerTokenByteLength = 32
 
+var ForbiddenUsernames = []string{ "login", "logout" }
+
 type UserInfo struct {
 	Name string `json:"name"`
 	Projects []ProjectInfo `json:"projects"`
@@ -19,6 +22,12 @@ type UserInfo struct {
 
 // CreateUser adds a user to the database and creates their directory
 func CreateUser(config Config, name string) error {
+	for _, forbidden := range ForbiddenUsernames {
+		if name == forbidden {
+			return ErrForbiddenUsername
+		}
+	}
+
 	if _, err := config.database.conn.Exec("INSERT INTO users (name) VALUES (?)", name); err != nil {
 		return fmt.Errorf("CreateUser insert in db: %w", err)
 	}
@@ -30,6 +39,8 @@ func CreateUser(config Config, name string) error {
 
 	return nil
 }
+
+var ErrForbiddenUsername = errors.New("forbidden username")
 
 // DeleteUser deletes a user from the database and recursively removes their directory
 func DeleteUser(config Config, name string) error {
