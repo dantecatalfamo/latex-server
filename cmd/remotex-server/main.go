@@ -51,9 +51,8 @@ func main() {
 	switch cmd[0] {
 	case "server":
 		log.Printf("Listening on http://%s", config.ListenAddress)
-		server.RunServer(config)
-		if err != nil {
-			log.Panic(err)
+		if err := server.RunServer(config); err != nil {
+			log.Fatal(err)
 		}
 	case "useradd":
 		if len(cmd) < 2 {
