@@ -35,12 +35,15 @@ func RunServer(config Config) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
-		return err
-	}
+	// Close the database before returning the error
+	srvErr := srv.Shutdown(ctx)
 
 	if err := config.database.conn.Close(); err != nil {
 		return err
+	}
+
+	if srvErr != nil {
+		return srvErr
 	}
 
 	return nil
