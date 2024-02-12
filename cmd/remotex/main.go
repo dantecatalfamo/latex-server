@@ -126,7 +126,7 @@ func main() {
 	switch cmd[0] {
 	case "init":
 		if len(cmd) < 2 {
-			fmt.Println("No project name")
+			fmt.Println("usage: remotex init <name> [path]")
 			os.Exit(1)
 		}
 
