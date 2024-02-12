@@ -12,10 +12,9 @@ import (
 )
 
 const listenAddress = "localhost:3344"
-const defaultConfigPath = "/etc/remotex/remotex.json"
 
 func main() {
-	configPath := flag.String("config", defaultConfigPath, "Configutation file")
+	configPath := flag.String("config", "", "Custom configutation file location")
 	flag.Parse()
 
 	cmd := flag.Args()
@@ -36,9 +35,8 @@ func main() {
 		return
 	}
 
-	if *configPath == "" {
-		fmt.Println("Specify config path")
-		os.Exit(1)
+	if *configPath != "" {
+		server.SetExplicitConfigFile(*configPath)
 	}
 
 	config, err := server.ReadAndInitializeConfig(*configPath)
