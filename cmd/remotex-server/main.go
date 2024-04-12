@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/csv"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"slices"
+	"strconv"
 
 	"github.com/dantecatalfamo/remotex/pkg/server"
 	"golang.org/x/term"
@@ -125,6 +127,37 @@ func main() {
 			log.Fatal(err)
 		}
 		log.Println("Token deleted")
+	case "stats":
+		userStats, err := server.GetGlobalStats(config)
+		if err != nil {
+			log.Fatal(err)
+		}
+		writer := csv.NewWriter(os.Stdout)
+		writer.Write([]string{
+			"User ID",
+			"User Name",
+			"Project ID",
+			"Project Name",
+			"Total Builds",
+			"Total Build Time",
+			"Total Files",
+			"Total File Size",
+		})
+		for _, stat := range userStats {
+			if err := writer.Write([]string{
+				strconv.FormatUint(stat.UserID, 10),
+				stat.UserName,
+				strconv.FormatUint(stat.ProjectID, 10),
+				stat.ProjectName,
+				strconv.FormatUint(stat.TotalBuilds, 10),
+				strconv.FormatFloat(stat.TotalBuildTime, 'f', 4, 64),
+				strconv.FormatUint(stat.TotalFiles, 10),
+				strconv.FormatUint(stat.TotalFileSize, 10),
+			}); err != nil {
+				log.Fatal(err)
+			}
+		}
+		writer.Flush()
 	default:
 		usage()
 		os.Exit(1)
@@ -138,6 +171,7 @@ func usage() {
   commands:
     newconfig <file>
     server
+    stats
     useradd   <username>
     userdel   <username>
     passwd    <username> [password]
