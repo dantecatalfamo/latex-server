@@ -17,6 +17,8 @@ func SetupRoutes(config Config, router *chi.Mux) {
 	router.Post("/login", controller.Login)
 	// Logout
 	router.Post("/logout", controller.Logout)
+	// Logout all user logins everywhere (destroy all tokens for user)
+	router.Post("/logout_all", controller.LogoutAll)
 
 	router.Route("/{user}", func(rUser chi.Router) {
 		// List projects

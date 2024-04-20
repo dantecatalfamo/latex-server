@@ -124,6 +124,35 @@ func DeleteUserToken(config Config, token string) error {
 	return nil
 }
 
+// This is unsupported by sqlite?
+// DELETE t
+// FROM
+//   tokens t
+// JOIN
+//   users u
+//   ON u.id = t.user_id
+// WHERE
+//   u.name = ?
+
+
+func DeleteAllUserTokens(config Config, user string) error {
+	stmt := `
+DELETE FROM
+  tokens
+WHERE id IN (
+  SELECT t.id
+  FROM tokens t
+  JOIN users u
+  ON u.id = t.user_id
+  WHERE u.name = ?
+)`
+	if _, err := config.database.conn.Exec(stmt, user); err != nil {
+		return fmt.Errorf("DeleteAllUserTokens: %w", err)
+	}
+
+	return nil
+}
+
 // GetUserFromToken returns the user name that a token is associated with
 func GetUserFromToken(config Config, token string) (string, error) {
 	row := config.database.conn.QueryRow("SELECT u.name FROM users u JOIN tokens t ON u.id = t.user_id WHERE t.token = ? LIMIT 1", token)

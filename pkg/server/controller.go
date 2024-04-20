@@ -64,6 +64,28 @@ func (c *Controller) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (c *Controller) LogoutAll(w http.ResponseWriter, r *http.Request) {
+	token := GetAuthToken(r.Context())
+	if token == "" {
+		http.Error(w, "not logged in", http.StatusUnauthorized)
+		log.Printf("%s %s: not logged in", r.Method, r.URL)
+		return
+	}
+
+	user, err := GetUserFromToken(c.config, token)
+	if err != nil {
+		http.Error(w, "could not get user info", http.StatusInternalServerError)
+		log.Printf("%s %s: %s", err)
+		return
+	}
+
+	if err := DeleteAllUserTokens(c.config, user); err != nil {
+		http.Error(w, "error deleting token", http.StatusInternalServerError)
+		log.Printf("%s %s: %s", r.Method, r.URL, err)
+		return
+	}
+}
+
 func (c *Controller) ListProjects(w http.ResponseWriter, r *http.Request) {
 	user := chi.URLParam(r, "user")
 	infos, err := c.config.database.ListUserProjects(user)

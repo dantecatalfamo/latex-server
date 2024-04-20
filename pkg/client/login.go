@@ -90,3 +90,36 @@ func Logout(globalConfig GlobalConfig) error {
 
 	return nil
 }
+
+func LogoutAll(globalConfig GlobalConfig) error {
+	logoutUrl, err := url.JoinPath(globalConfig.ServerBaseUrl, "logout_all")
+	if err != nil {
+		return fmt.Errorf("LogoutAll create url: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, logoutUrl, nil)
+	if err != nil {
+		return fmt.Errorf("LogoutAll create request: %w", err)
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", globalConfig.Token))
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("LogoutAll do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Unauthorized is invalid auth token, we can clear it and return success
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusUnauthorized {
+		return fmt.Errorf("LogoutAll unexpected status code %d", resp.StatusCode)
+	}
+
+	globalConfig.Token = ""
+	globalConfig.User = ""
+
+	if err := WriteGlobalConfig(globalConfig); err != nil {
+		return fmt.Errorf("LogoutAll write global config: %w", err)
+	}
+
+	return nil
+}

@@ -276,6 +276,12 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println("Logged out")
+	case "logoutall":
+		if err := client.LogoutAll(globalConfig); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Println("Logged out all clients")
 	default:
 		fmt.Println("Invalid command")
 		os.Exit(1)
@@ -287,6 +293,7 @@ func usage() {
 commands:
   login        Login to remotex server
   logout       Logout of the remotex server
+  logoutall    Logout all clients connected to the account
   build        Build the current project
   clone        Clone an existing project to your local machien
   files        List the current project's local files
