@@ -12,6 +12,7 @@ type UserStats struct {
 	ProjectName string `json:"project_name"`
 	TotalBuilds uint64 `json:"total_builds"`
 	TotalBuildTime float64 `json:"total_buil_time"`
+	LastBuildStart string `json:"last_build_start"`
 	TotalFiles uint64 `json:"total_files"`
 	TotalFileSize uint64 `json:"total_file_size"`
 }
@@ -38,6 +39,7 @@ func GetGlobalStats(config Config) ([]UserStats, error) {
 			&userStat.ProjectName,
 			&userStat.TotalBuilds,
 			&userStat.TotalBuildTime,
+			&userStat.LastBuildStart,
 			&userStat.TotalFiles,
 			&userStat.TotalFileSize,
 		); err != nil {

@@ -140,6 +140,7 @@ func main() {
 			"Project Name",
 			"Total Builds",
 			"Total Build Time",
+			"Last Build Start",
 			"Total Files",
 			"Total File Size",
 		})
@@ -151,6 +152,7 @@ func main() {
 				stat.ProjectName,
 				strconv.FormatUint(stat.TotalBuilds, 10),
 				strconv.FormatFloat(stat.TotalBuildTime, 'f', 4, 64),
+				stat.LastBuildStart,
 				strconv.FormatUint(stat.TotalFiles, 10),
 				strconv.FormatUint(stat.TotalFileSize, 10),
 			}); err != nil {

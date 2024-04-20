@@ -10,11 +10,12 @@ WITH user_projects(user_id, user_name, project_id, project_name) AS (
     projects p
     ON p.user_id = u.id
 ),
-user_projects_builds(project_id, total_builds, total_build_time) AS (
+user_projects_builds(project_id, total_builds, total_build_time, last_build_start) AS (
   SELECT
     up.project_id,
     COUNT(*),
-    SUM(b.build_time)
+    SUM(b.build_time),
+    MAX(b.build_start)
   FROM
     user_projects up
   LEFT JOIN
@@ -43,6 +44,7 @@ SELECT
   up.project_name,
   upb.total_builds,
   upb.total_build_time,
+  upb.last_build_start,
   upf.total_files,
   upf.total_file_size
 FROM
