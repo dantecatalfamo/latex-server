@@ -75,7 +75,7 @@ func (c *Controller) LogoutAll(w http.ResponseWriter, r *http.Request) {
 	user, err := GetUserFromToken(c.config, token)
 	if err != nil {
 		http.Error(w, "could not get user info", http.StatusInternalServerError)
-		log.Printf("%s %s: %s", err)
+		log.Printf("%s %s: %s", r.Method, r.URL, err)
 		return
 	}
 
